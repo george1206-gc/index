@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (雲端同步修正版)</title>
+    <title>捲繞出勤表 (雲端同步版)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;      /* 日班：淺綠 */
@@ -206,15 +206,43 @@
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
 
+        /* 手機螢幕優化 (螢幕寬度小於 600px 時) */
         @media screen and (max-width: 600px) {
-            body { margin: 5px; }
-            .header-controls { gap: 6px; }
-            .left-controls { gap: 4px; }
-            .control-group { padding: 1px 3px; }
-            .control-group span { font-size: 12px; padding: 0 2px; }
-            select { font-size: 13px; padding: 2px 3px; }
-            .user-info { font-size: 12px; padding: 4px 6px; }
-            .change-pwd-btn, .logout-btn, .toggle-btn { padding: 5px 6px; font-size: 11px; }
+            body {
+                margin: 5px;
+            }
+
+            .header-controls {
+                gap: 6px;
+            }
+
+            .left-controls {
+                gap: 4px;
+            }
+
+            .control-group {
+                padding: 1px 3px;
+            }
+
+            .control-group span {
+                font-size: 12px;
+                padding: 0 2px;
+            }
+
+            select {
+                font-size: 13px;
+                padding: 2px 3px;
+            }
+
+            .user-info {
+                font-size: 12px;
+                padding: 4px 6px;
+            }
+
+            .change-pwd-btn, .logout-btn, .toggle-btn {
+                padding: 5px 6px;
+                font-size: 11px;
+            }
         }
 
         /* ==== 表格樣式 ==== */
@@ -376,7 +404,7 @@
 </div>
 
 <script>
-    // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
+    // ⚠️ 請在此處貼上您發布的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
 
     const employees = [
@@ -432,7 +460,7 @@
         try {
             const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
             const data = await resp.json();
-            if (data) cloudData = data;
+            cloudData = data;
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -457,7 +485,7 @@
     }
 
     function getUserPassword(empName) {
-        return (cloudData.passwords && cloudData.passwords[empName]) ? cloudData.passwords[empName] : "0000";
+        return cloudData.passwords[empName] || "0000";
     }
 
     async function checkLoginStatus() {
@@ -518,7 +546,6 @@
             pwdErrorMsg.style.display = "block"; return;
         }
 
-        if(!cloudData.passwords) cloudData.passwords = {};
         cloudData.passwords[currentUser] = newVal;
         postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
 
@@ -538,14 +565,14 @@
     for (let y = currentYear - 5; y <= currentYear + 5; y++) {
         let option = document.createElement('option');
         option.value = y; option.text = y;
-        if (y === currentYear) option.selected = true; 
+        if (y === 2026) option.selected = true; 
         yearSelect.appendChild(option);
     }
 
     for (let m = 1; m <= 12; m++) {
         let option = document.createElement('option');
         option.value = m; option.text = m;
-        if (m === (currentData.getMonth() + 1)) option.selected = true; 
+        if (m === 8) option.selected = true; 
         monthSelect.appendChild(option);
     }
 
@@ -558,26 +585,24 @@
         const year = yearSelect.value;
         const month = monthSelect.value;
         const limitKey = `${year}_${month}`;
-        if (!cloudData.otLimits) cloudData.otLimits = {};
         cloudData.otLimits[limitKey] = this.value;
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
-    // 🛠️ 核心修復：修正預設班別邏輯，防止出現 undefined 導致顯示 undefin 🛠️
     function getDefaultShift(year, month, day) {
-        const shiftCycle = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
         const utcEpoch = Date.UTC(2025, 11, 31); 
         const utcTarget = Date.UTC(year, month - 1, day);
         const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
 
         if (cycleDay === 0 || cycleDay === 1) {
-            let mIdx = month - 1;
+            let blockStartMonth = month; 
             if (cycleDay === 1) {
-                const prevDay = new Date(year, month - 1, day - 1);
-                mIdx = prevDay.getMonth();
+                const yesterday = new Date(year, month - 1, day - 1);
+                blockStartMonth = yesterday.getMonth() + 1;
             }
-            return shiftCycle[mIdx] || '';
+            const shiftTypes = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
+            return shiftTypes[blockStartMonth - 1];
         }
         return ''; 
     }
@@ -593,7 +618,7 @@
         const daysInMonth = new Date(year, month, 0).getDate();
         
         const limitKey = `${year}_${month}`;
-        otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[limitKey] !== undefined) ? cloudData.otLimits[limitKey] : '';
+        otLimitSelect.value = cloudData.otLimits[limitKey] !== undefined ? cloudData.otLimits[limitKey] : '';
 
         const thead = document.getElementById('tableHead');
         const tbody = document.getElementById('tableBody');
@@ -650,26 +675,28 @@
                 <td class="col-name"><div class="cell-content">${empName}</div></td>
             `;
 
+            let otCount = 0; let lvCount = 0;
+
             for (let i = 1; i <= daysInMonth; i++) {
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+                const savedValue = cloudData.shifts[shiftKey];
                 
-                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
+                if (finalValue === 'G') otCount++;
+                if (['特', '病', '事', '生'].includes(finalValue)) lvCount++;
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
                 
-                let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
-                if (finalValue !== '' && !baseOptions.includes(finalValue)) {
-                    baseOptions.push(finalValue);
-                }
-
-                baseOptions.forEach(opt => {
+                let options = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
+                if (savedValue !== undefined && !options.includes(savedValue)) { options.push(savedValue); }
+                
+                options.forEach(opt => {
                     let option = document.createElement('option');
-                    option.value = opt;
-                    option.textContent = opt;
+                    option.value = opt; option.textContent = opt;
                     if (opt === finalValue) option.selected = true;
                     select.appendChild(option);
                 });
@@ -688,7 +715,7 @@
                             if (otherEmp === empName) return; 
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
                             const def = getDefaultShift(year, month, i);
-                            const val = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
+                            const val = cloudData.shifts[key] !== undefined ? cloudData.shifts[key] : def;
                             if (val === 'G') otherOtCount++;
                         });
 
@@ -700,7 +727,6 @@
                     }
 
                     currentVal = newVal;
-                    if (!cloudData.shifts) cloudData.shifts = {};
                     cloudData.shifts[shiftKey] = newVal;
                     postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
 
@@ -714,7 +740,8 @@
             }
 
             tbody.appendChild(tr);
-            calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+            document.getElementById(otCellId).textContent = otCount;
+            document.getElementById(lvCellId).textContent = lvCount;
         });
     }
 
@@ -723,16 +750,14 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
             const defaultShift = getDefaultShift(year, month, i);
-            const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+            const savedValue = cloudData.shifts[shiftKey];
             let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
 
             if (val === 'G') otCount++;
             if (['特', '病', '事', '生'].includes(val)) lvCount++;
         }
-        const otElem = document.getElementById(otCellId);
-        const lvElem = document.getElementById(lvCellId);
-        if (otElem) otElem.textContent = otCount;
-        if (lvElem) lvElem.textContent = lvCount;
+        document.getElementById(otCellId).textContent = otCount;
+        document.getElementById(lvCellId).textContent = lvCount;
     }
 
     function updateCellColor(cell, value) {
