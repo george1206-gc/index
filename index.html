@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>捲繞出勤表 (雲端同步版)</title>
+    <style>
+        :root {
+            --bg-day: #c6e0b4;      /* 日班：淺綠 */
+            --bg-g: #ffff00;        /* G班：黃色 */
+            --bg-special: #ff00ff;  /* 特休：桃紅 */
+            --bg-personal: #8064a2; /* 事假：深紫 */
+            --bg-night: #fce4d6;    /* 夜班：淺橘 */
+            --text-personal: #ffffff;
+            
+            --bg-sick: #f8cecc;     /* 病假：粉紅 */
+            --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
+            --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
+            --bg-unattended: #d0d0d0;/* 未到：灰色 */
+            
+            --border-color: #a0a0a0;
+        }
+        
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            margin: 10px;
+            background-color: #fcfcfc;
+            touch-action: manipulation; 
+        }
+
+        /* 雲端同步狀態提示條 */
+        .sync-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.75);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: none;
+            z-index: 10001;
+        }
+
+        /* ==== 登入與彈窗遮罩介面 ==== */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(245, 247, 250, 0.98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background-color: #ffffff;
+            padding: 30px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            box-sizing: border-box;
+            border: 1px solid #e0e0e0;
+        }
+
+        .login-card h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        .login-field {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .login-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .login-field input, .login-field select {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #fff;
+            outline: none;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #28a745;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .login-btn:hover { background-color: #218838; }
+
+        .login-error {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+            font-weight: bold;
+        }
+
+        .main-app { display: none; }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; 
+            flex-wrap: wrap; 
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .left-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex: 1 1 auto;
+        }
+
+        .right-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            background-color: #00ff00;
+            padding: 2px 4px;
+            border: 1px solid #000;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .control-group span {
+            font-weight: bold;
+            padding: 0 6px;
+            white-space: nowrap; 
+            font-size: 14px;
+        }
+
+        select {
+            font-size: 15px;
+            padding: 4px 6px;
+            border: 1px solid #ccc;
+            background-color: #ffe6e6;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        select:disabled {
+            background-color: #e0e0e0;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .user-info {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .change-pwd-btn {
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #17a2b8;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #dc3545;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .toggle-btn {
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .table-container {
+            overflow: auto; 
+            max-height: 80vh; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: white;
+            -webkit-overflow-scrolling: touch; 
+        }
+
+        table {
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            background-color: white;
+            white-space: nowrap;
+        }
+
+        th, td {
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0; 
+            min-width: 32px; 
+            height: 38px; 
+            box-sizing: border-box;
+            background-clip: padding-box;
+        }
+
+        th:first-child, td:first-child { border-left: 1px solid var(--border-color); }
+        tr:first-child th { border-top: 1px solid var(--border-color); }
+
+        th { background-color: #f2f2f2; font-weight: bold; }
+
+        thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }
+        thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; }
+
+        .stats-ot { position: sticky; left: 0; width: 40px; min-width: 40px; z-index: 2; color: #00b0f0; background-color: #e6f7ff; font-weight: bold; }
+        .stats-lv { position: sticky; left: 40px; width: 40px; min-width: 40px; z-index: 2; color: #ff0000; background-color: #ffe6e6; font-weight: bold; }
+        .col-name { position: sticky; left: 80px; width: 65px; min-width: 65px; z-index: 2; font-weight: bold; background-color: #fafafa; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.3); }
+        
+        thead th.stats-ot, thead th.stats-lv, thead th.col-name { z-index: 3 !important; background-color: #e0e0e0; color: black; }
+
+        body.hide-stats .stats-ot, body.hide-stats .stats-lv { display: none !important; }
+        body.hide-stats .col-name { left: 0 !important; }
+
+        .weekend-header { color: red; }
+        .today-header { background-color: #00ffff !important; }
+
+        .cell-content { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 38px; box-sizing: border-box; }
+
+        .shift-select {
+            width: 100%; height: 38px; border: none; background-color: transparent;
+            font-size: 15px; font-family: inherit; text-align: center; text-align-last: center;
+            appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; outline: none;
+            color: inherit; font-weight: inherit;
+        }
+
+        .shift-day { background-color: var(--bg-day); }
+        .shift-night { background-color: var(--bg-night); }
+        .shift-g { background-color: var(--bg-g); color: black; font-weight: bold; }
+        .shift-unattended { background-color: var(--bg-unattended); color: black; font-weight: bold; }
+        .shift-special { background-color: var(--bg-special); color: black; font-weight: bold; }
+        .shift-personal { background-color: var(--bg-personal); color: var(--text-personal); font-weight: bold; }
+        .shift-sick { background-color: var(--bg-sick); color: black; font-weight: bold; }
+        .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
+        .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="syncStatus" class="sync-status">☁️ 雲端同步中...</div>
+
+<!-- ==== 登入視窗 ==== -->
+<div id="loginOverlay" class="login-overlay">
+    <div class="login-card">
+        <h2>系統登入 (雲端版)</h2>
+        <div class="login-field">
+            <label for="loginNameSelect">員工姓名 (帳號)</label>
+            <select id="loginNameSelect">
+                <option value="">-- 請選擇姓名 --</option>
+            </select>
+        </div>
+        <div class="login-field">
+            <label for="loginPasswordInput">密碼</label>
+            <input type="password" id="loginPasswordInput" placeholder="預設密碼：0000">
+        </div>
+        <button id="loginSubmitBtn" class="login-btn">登入</button>
+        <div id="loginErrorMsg" class="login-error">請選擇姓名或密碼錯誤！</div>
+    </div>
+</div>
+
+<!-- ==== 修改密碼視窗 ==== -->
+<div id="changePwdModal" class="login-overlay" style="display: none; z-index: 10000;">
+    <div class="login-card">
+        <h2>修改密碼</h2>
+        <div class="login-field">
+            <label for="oldPwdInput">舊密碼</label>
+            <input type="password" id="oldPwdInput" placeholder="請輸入原密碼">
+        </div>
+        <div class="login-field">
+            <label for="newPwdInput">新密碼</label>
+            <input type="password" id="newPwdInput" placeholder="請輸入新密碼">
+        </div>
+        <div class="login-field">
+            <label for="confirmPwdInput">確認新密碼</label>
+            <input type="password" id="confirmPwdInput" placeholder="請再次輸入新密碼">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button id="cancelPwdBtn" class="login-btn" style="background-color: #6c757d;">取消</button>
+            <button id="savePwdBtn" class="login-btn">儲存修改</button>
+        </div>
+        <div id="pwdErrorMsg" class="login-error"></div>
+    </div>
+</div>
+
+<!-- ==== 主應用程式 ==== -->
+<div id="mainApp" class="main-app">
+    <div class="header-controls">
+        <div class="left-controls">
+            <div class="control-group">
+                <span>年份</span>
+                <select id="yearSelect"></select>
+            </div>
+            <div class="control-group">
+                <span>月份</span>
+                <select id="monthSelect"></select>
+            </div>
+            <div class="control-group">
+                <span>加班限制</span>
+                <select id="otLimitSelect">
+                    <option value="">空白</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                </select>
+            </div>
+        </div>
+        <div class="right-controls">
+            <div id="userInfoDisplay" class="user-info">👤 未登入</div>
+            <button id="changePwdBtn" class="change-pwd-btn">修改密碼</button>
+            <button id="logoutBtn" class="logout-btn">登出</button>
+            <button id="toggleStatsBtn" class="toggle-btn">隱藏統計</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="scheduleTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 請在此處貼上您發布的 Google Apps Script 網址 ⚠️
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJ7JIx3R9gUWCCz6mZenjEAexeVVY33-ymoQwEFtTBS2JZWnvMM_NSyii7HgoVnpD-/exec";
+
+    const employees = [
+        "陳喬志", "廖曉彤", "楊代億", "蔡靜儀", "賴建亦", "施榮傑",
+        "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
+        "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
+    ];
+
+    const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
+    
+    // 全域雲端快取資料
+    let cloudData = {
+        shifts: {},
+        passwords: {},
+        otLimits: {}
+    };
+
+    const syncStatus = document.getElementById('syncStatus');
+    const loginOverlay = document.getElementById('loginOverlay');
+    const loginNameSelect = document.getElementById('loginNameSelect');
+    const loginPasswordInput = document.getElementById('loginPasswordInput');
+    const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+    const loginErrorMsg = document.getElementById('loginErrorMsg');
+    
+    const changePwdModal = document.getElementById('changePwdModal');
+    const oldPwdInput = document.getElementById('oldPwdInput');
+    const newPwdInput = document.getElementById('newPwdInput');
+    const confirmPwdInput = document.getElementById('confirmPwdInput');
+    const cancelPwdBtn = document.getElementById('cancelPwdBtn');
+    const savePwdBtn = document.getElementById('savePwdBtn');
+    const pwdErrorMsg = document.getElementById('pwdErrorMsg');
+    const changePwdBtn = document.getElementById('changePwdBtn');
+
+    const mainApp = document.getElementById('mainApp');
+    const userInfoDisplay = document.getElementById('userInfoDisplay');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const yearSelect = document.getElementById('yearSelect');
+    const monthSelect = document.getElementById('monthSelect');
+    const otLimitSelect = document.getElementById('otLimitSelect');
+    const toggleStatsBtn = document.getElementById('toggleStatsBtn');
+
+    function showSync() { syncStatus.style.display = 'block'; }
+    function hideSync() { syncStatus.style.display = 'none'; }
+
+    // 初始化選單
+    employees.forEach(emp => {
+        let opt = document.createElement('option');
+        opt.value = emp; opt.textContent = emp;
+        loginNameSelect.appendChild(opt);
+    });
+
+    // 從雲端載入所有最新資料
+    async function fetchCloudData() {
+        showSync();
+        try {
+            const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
+            const data = await resp.json();
+            cloudData = data;
+        } catch (err) {
+            console.error("雲端讀取失敗", err);
+        } finally {
+            hideSync();
+        }
+    }
+
+    // 發送異動至雲端
+    async function postCloudData(payload) {
+        showSync();
+        try {
+            await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (err) {
+            console.error("雲端寫入失敗", err);
+        } finally {
+            hideSync();
+        }
+    }
+
+    function getUserPassword(empName) {
+        return cloudData.passwords[empName] || "0000";
+    }
+
+    async function checkLoginStatus() {
+        await fetchCloudData(); // 登入前同步最新資料
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        if (currentUser) {
+            loginOverlay.style.display = 'none';
+            mainApp.style.display = 'block';
+            userInfoDisplay.textContent = `👤 ${currentUser}`;
+            renderTable();
+        } else {
+            loginOverlay.style.display = 'flex';
+            mainApp.style.display = 'none';
+        }
+    }
+
+    loginSubmitBtn.addEventListener('click', function() {
+        const selectedUser = loginNameSelect.value;
+        const inputPwd = loginPasswordInput.value;
+        const correctPwd = getUserPassword(selectedUser);
+
+        if (selectedUser && inputPwd === correctPwd) {
+            sessionStorage.setItem('s4_current_user', selectedUser);
+            loginErrorMsg.style.display = 'none';
+            loginPasswordInput.value = '';
+            checkLoginStatus();
+        } else {
+            loginErrorMsg.style.display = 'block';
+        }
+    });
+
+    changePwdBtn.addEventListener('click', function() {
+        oldPwdInput.value = ''; newPwdInput.value = ''; confirmPwdInput.value = '';
+        pwdErrorMsg.style.display = 'none';
+        changePwdModal.style.display = 'flex';
+    });
+
+    cancelPwdBtn.addEventListener('click', function() { changePwdModal.style.display = 'none'; });
+
+    savePwdBtn.addEventListener('click', async function() {
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        const correctPwd = getUserPassword(currentUser);
+        
+        const oldVal = oldPwdInput.value;
+        const newVal = newPwdInput.value;
+        const confirmVal = confirmPwdInput.value;
+
+        if (oldVal !== correctPwd) {
+            pwdErrorMsg.textContent = "舊密碼輸入錯誤！";
+            pwdErrorMsg.style.display = "block"; return;
+        }
+        if (!newVal) {
+            pwdErrorMsg.textContent = "新密碼不可為空白！";
+            pwdErrorMsg.style.display = "block"; return;
+        }
+        if (newVal !== confirmVal) {
+            pwdErrorMsg.textContent = "兩次輸入的新密碼不一致！";
+            pwdErrorMsg.style.display = "block"; return;
+        }
+
+        // 更新快取並同步雲端
+        cloudData.passwords[currentUser] = newVal;
+        postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
+
+        alert("密碼修改成功！");
+        changePwdModal.style.display = 'none';
+    });
+
+    logoutBtn.addEventListener('click', function() {
+        sessionStorage.removeItem('s4_current_user');
+        loginNameSelect.value = ""; loginPasswordInput.value = "";
+        checkLoginStatus();
+    });
+
+    const currentData = new Date();
+    const currentYear = currentData.getFullYear();
+
+    for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+        let option = document.createElement('option');
+        option.value = y; option.text = y;
+        if (y === 2026) option.selected = true; 
+        yearSelect.appendChild(option);
+    }
+
+    for (let m = 1; m <= 12; m++) {
+        let option = document.createElement('option');
+        option.value = m; option.text = m;
+        if (m === 8) option.selected = true; 
+        monthSelect.appendChild(option);
+    }
+
+    toggleStatsBtn.addEventListener('click', function() {
+        document.body.classList.toggle('hide-stats');
+        this.textContent = document.body.classList.contains('hide-stats') ? '顯示統計' : '隱藏統計';
+    });
+
+    otLimitSelect.addEventListener('change', function() {
+        const year = yearSelect.value;
+        const month = monthSelect.value;
+        const limitKey = `${year}_${month}`;
+        cloudData.otLimits[limitKey] = this.value;
+        postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
+    });
+
+    function getDefaultShift(year, month, day) {
+        const utcEpoch = Date.UTC(2025, 11, 31); 
+        const utcTarget = Date.UTC(year, month - 1, day);
+        const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
+        const cycleDay = ((diffDays % 4) + 4) % 4;
+
+        if (cycleDay === 0 || cycleDay === 1) {
+            let blockStartMonth = month; 
+            if (cycleDay === 1) {
+                const yesterday = new Date(year, month - 1, day - 1);
+                blockStartMonth = yesterday.getMonth() + 1;
+            }
+            const shiftTypes = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
+            return shiftTypes[blockStartMonth - 1];
+        }
+        return ''; 
+    }
+
+    function renderTable() {
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        if (!currentUser) return;
+
+        otLimitSelect.disabled = (currentUser !== "陳喬志");
+
+        const year = parseInt(yearSelect.value);
+        const month = parseInt(monthSelect.value);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        const limitKey = `${year}_${month}`;
+        otLimitSelect.value = cloudData.otLimits[limitKey] !== undefined ? cloudData.otLimits[limitKey] : '';
+
+        const thead = document.getElementById('tableHead');
+        const tbody = document.getElementById('tableBody');
+        thead.innerHTML = ''; tbody.innerHTML = '';
+
+        let trDate = document.createElement('tr');
+        let trDay = document.createElement('tr');
+
+        trDate.innerHTML = `
+            <th class="col-stats stats-ot" rowspan="2"><div class="cell-content">當月<br>加班</div></th>
+            <th class="col-stats stats-lv" rowspan="2"><div class="cell-content">當月<br>請假</div></th>
+            <th class="col-name"><div class="cell-content">日期</div></th>
+        `;
+        trDay.innerHTML = `<th class="col-name"><div class="cell-content">星期</div></th>`;
+
+        const today = new Date();
+        const todayY = today.getFullYear();
+        const todayM = today.getMonth() + 1;
+        const todayD = today.getDate();
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            let dateObj = new Date(year, month - 1, i);
+            let dayOfWeek = dateObj.getDay();
+            let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+            let isToday = (year === todayY && month === todayM && i === todayD);
+
+            let thDate = document.createElement('th');
+            thDate.innerHTML = `<div class="cell-content">${i}</div>`;
+            if (isToday) thDate.classList.add('today-header');
+            trDate.appendChild(thDate);
+
+            let thDay = document.createElement('th');
+            thDay.innerHTML = `<div class="cell-content">${weekDaysTW[dayOfWeek]}</div>`;
+            if (isWeekend) thDay.classList.add('weekend-header');
+            if (isToday) thDay.classList.add('today-header');
+            trDay.appendChild(thDay);
+        }
+
+        thead.appendChild(trDate);
+        thead.appendChild(trDay);
+
+        const visibleEmployees = (currentUser === "陳喬志") 
+            ? employees 
+            : employees.filter(emp => emp === currentUser);
+
+        visibleEmployees.forEach(empName => {
+            let tr = document.createElement('tr');
+            const otCellId = `ot_${year}_${month}_${empName}`;
+            const lvCellId = `lv_${year}_${month}_${empName}`;
+
+            tr.innerHTML = `
+                <td class="stats-ot"><div class="cell-content" id="${otCellId}">0</div></td>
+                <td class="stats-lv"><div class="cell-content" id="${lvCellId}">0</div></td>
+                <td class="col-name"><div class="cell-content">${empName}</div></td>
+            `;
+
+            let otCount = 0; let lvCount = 0;
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                let td = document.createElement('td');
+                const defaultShift = getDefaultShift(year, month, i);
+                const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+                const savedValue = cloudData.shifts[shiftKey];
+                
+                let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
+                if (finalValue === 'G') otCount++;
+                if (['特', '病', '事', '生'].includes(finalValue)) lvCount++;
+
+                let select = document.createElement('select');
+                select.className = 'shift-select';
+                
+                let options = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
+                if (savedValue !== undefined && !options.includes(savedValue)) { options.push(savedValue); }
+                
+                options.forEach(opt => {
+                    let option = document.createElement('option');
+                    option.value = opt; option.textContent = opt;
+                    if (opt === finalValue) option.selected = true;
+                    select.appendChild(option);
+                });
+
+                let currentVal = finalValue;
+                
+                select.addEventListener('change', function() {
+                    const newVal = this.value;
+                    const limitVal = otLimitSelect.value;
+
+                    if (newVal === 'G' && defaultShift === '' && limitVal !== '') {
+                        const limit = parseInt(limitVal, 10);
+                        let otherOtCount = 0;
+                        
+                        employees.forEach(otherEmp => {
+                            if (otherEmp === empName) return; 
+                            const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
+                            const def = getDefaultShift(year, month, i);
+                            const val = cloudData.shifts[key] !== undefined ? cloudData.shifts[key] : def;
+                            if (val === 'G') otherOtCount++;
+                        });
+
+                        if (otherOtCount >= limit) {
+                            alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
+                            this.value = currentVal; 
+                            return;
+                        }
+                    }
+
+                    currentVal = newVal;
+                    cloudData.shifts[shiftKey] = newVal;
+                    postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+
+                    updateCellColor(td, newVal);
+                    calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+                });
+                
+                td.appendChild(select);
+                updateCellColor(td, finalValue);
+                tr.appendChild(td);
+            }
+
+            tbody.appendChild(tr);
+            document.getElementById(otCellId).textContent = otCount;
+            document.getElementById(lvCellId).textContent = lvCount;
+        });
+    }
+
+    function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
+        let otCount = 0; let lvCount = 0;
+        for (let i = 1; i <= daysInMonth; i++) {
+            const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+            const defaultShift = getDefaultShift(year, month, i);
+            const savedValue = cloudData.shifts[shiftKey];
+            let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
+            if (val === 'G') otCount++;
+            if (['特', '病', '事', '生'].includes(val)) lvCount++;
+        }
+        document.getElementById(otCellId).textContent = otCount;
+        document.getElementById(lvCellId).textContent = lvCount;
+    }
+
+    function updateCellColor(cell, value) {
+        cell.classList.remove('shift-day', 'shift-night', 'shift-g', 'shift-unattended', 'shift-special', 'shift-personal', 'shift-sick', 'shift-physio', 'shift-typhoon');
+        switch (value) {
+            case '日': cell.classList.add('shift-day'); break;
+            case '夜': cell.classList.add('shift-night'); break;
+            case 'G': cell.classList.add('shift-g'); break;
+            case '未': cell.classList.add('shift-unattended'); break;
+            case '特': cell.classList.add('shift-special'); break;
+            case '事': cell.classList.add('shift-personal'); break;
+            case '病': cell.classList.add('shift-sick'); break;
+            case '生': cell.classList.add('shift-physio'); break;
+            case '颱': cell.classList.add('shift-typhoon'); break;
+        }
+    }
+
+    yearSelect.addEventListener('change', async () => { await fetchCloudData(); renderTable(); });
+    monthSelect.addEventListener('change', async () => { await fetchCloudData(); renderTable(); });
+
+    checkLoginStatus();
+</script>
+
+</body>
+</html>
