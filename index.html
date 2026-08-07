@@ -440,8 +440,9 @@
     // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdomLlDkFdhq8ZBZTZ_80fVYRSFTDT3vg51WxA37TtSBCN_RvbmzUfv1cZRo6KIscw/exec";
 
+    // 🌟 已將「廖曉彤」與「楊代億」位置對調
     const employees = [
-        "陳喬志", "廖曉彤", "楊代億", "蔡靜儀", "賴建亦", "施榮傑",
+        "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
@@ -567,7 +568,7 @@
         const correctPwd = getUserPassword(currentUser);
         
         const oldVal = oldPwdInput.value;
-        const newVal = newValInput.value;
+        const newVal = newPwdInput.value;
         const confirmVal = confirmPwdInput.value;
 
         if (oldVal !== correctPwd) {
@@ -669,7 +670,7 @@
         if (totalUaDisplay) totalUaDisplay.textContent = `全班未到: ${grandTotalUa}天`;
     }
 
-    // 🌟 計算當天加班總人數（若當天預設為日班或夜班則不顯示人數）
+    // 計算當天加班總人數（若當天預設為日班或夜班則不顯示人數）
     function calculateDailyOtStats(year, month, daysInMonth) {
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
@@ -836,7 +837,7 @@
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
-        // 🌟 新增：在最後一位員工下方新增「當天加班人數」統計列
+        // 新增：在最後一位員工下方新增「當天加班人數」統計列
         let trDailyOt = document.createElement('tr');
         trDailyOt.className = 'daily-ot-row';
         trDailyOt.innerHTML = `
