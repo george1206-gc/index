@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (雲端同步版)</title>
+    <title>捲繞出勤表 (雲端同步修正版)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;      /* 日班：淺綠 */
@@ -166,6 +166,34 @@
             font-size: 13px;
         }
 
+        /* 🌟 新增：全班統計資訊顯示樣式 */
+        .total-stats-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-badge {
+            font-size: 13px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            border: 1px solid #bbb;
+        }
+
+        .stat-badge-ot {
+            background-color: #e6f7ff;
+            color: #0073e6;
+            border-color: #91d5ff;
+        }
+
+        .stat-badge-lv {
+            background-color: #ffe6e6;
+            color: #d9363e;
+            border-color: #ffa39e;
+        }
+
         select {
             font-size: 14px;
             padding: 4px;
@@ -206,43 +234,16 @@
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
 
-        /* 手機螢幕優化 (螢幕寬度小於 600px 時) */
         @media screen and (max-width: 600px) {
-            body {
-                margin: 5px;
-            }
-
-            .header-controls {
-                gap: 6px;
-            }
-
-            .left-controls {
-                gap: 4px;
-            }
-
-            .control-group {
-                padding: 1px 3px;
-            }
-
-            .control-group span {
-                font-size: 12px;
-                padding: 0 2px;
-            }
-
-            select {
-                font-size: 13px;
-                padding: 2px 3px;
-            }
-
-            .user-info {
-                font-size: 12px;
-                padding: 4px 6px;
-            }
-
-            .change-pwd-btn, .logout-btn, .toggle-btn {
-                padding: 5px 6px;
-                font-size: 11px;
-            }
+            body { margin: 5px; }
+            .header-controls { gap: 6px; }
+            .left-controls { gap: 4px; }
+            .control-group { padding: 1px 3px; }
+            .control-group span { font-size: 12px; padding: 0 2px; }
+            select { font-size: 13px; padding: 2px 3px; }
+            .user-info { font-size: 12px; padding: 4px 6px; }
+            .change-pwd-btn, .logout-btn, .toggle-btn { padding: 5px 6px; font-size: 11px; }
+            .stat-badge { font-size: 11px; padding: 3px 5px; }
         }
 
         /* ==== 表格樣式 ==== */
@@ -386,6 +387,11 @@
                     <option value="7">7</option>
                 </select>
             </div>
+            <!-- 🌟 新增：全班統計資訊欄位 -->
+            <div class="total-stats-group">
+                <span id="totalOtDisplay" class="stat-badge stat-badge-ot">全班加班: 0天</span>
+                <span id="totalLvDisplay" class="stat-badge stat-badge-lv">全班請假: 0天</span>
+            </div>
         </div>
         <div class="right-controls">
             <div id="userInfoDisplay" class="user-info">👤 未登入</div>
@@ -404,11 +410,11 @@
 </div>
 
 <script>
-    // ⚠️ 請在此處貼上您發布的 Google Apps Script 網址 ⚠️
+    // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdomLlDkFdhq8ZBZTZ_80fVYRSFTDT3vg51WxA37TtSBCN_RvbmzUfv1cZRo6KIscw/exec";
 
     const employees = [
-        "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
+        "陳喬志", "廖曉彤", "楊代億", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
@@ -446,6 +452,10 @@
     const otLimitSelect = document.getElementById('otLimitSelect');
     const toggleStatsBtn = document.getElementById('toggleStatsBtn');
 
+    // 🌟 新增：取得全班統計 DOM 元素
+    const totalOtDisplay = document.getElementById('totalOtDisplay');
+    const totalLvDisplay = document.getElementById('totalLvDisplay');
+
     function showSync() { syncStatus.style.display = 'block'; }
     function hideSync() { syncStatus.style.display = 'none'; }
 
@@ -460,7 +470,7 @@
         try {
             const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
             const data = await resp.json();
-            cloudData = data;
+            if (data) cloudData = data;
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -485,7 +495,7 @@
     }
 
     function getUserPassword(empName) {
-        return cloudData.passwords[empName] || "0000";
+        return (cloudData.passwords && cloudData.passwords[empName]) ? cloudData.passwords[empName] : "0000";
     }
 
     async function checkLoginStatus() {
@@ -546,6 +556,7 @@
             pwdErrorMsg.style.display = "block"; return;
         }
 
+        if(!cloudData.passwords) cloudData.passwords = {};
         cloudData.passwords[currentUser] = newVal;
         postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
 
@@ -565,14 +576,14 @@
     for (let y = currentYear - 5; y <= currentYear + 5; y++) {
         let option = document.createElement('option');
         option.value = y; option.text = y;
-        if (y === 2026) option.selected = true; 
+        if (y === currentYear) option.selected = true; 
         yearSelect.appendChild(option);
     }
 
     for (let m = 1; m <= 12; m++) {
         let option = document.createElement('option');
         option.value = m; option.text = m;
-        if (m === 8) option.selected = true; 
+        if (m === (currentData.getMonth() + 1)) option.selected = true; 
         monthSelect.appendChild(option);
     }
 
@@ -585,26 +596,48 @@
         const year = yearSelect.value;
         const month = monthSelect.value;
         const limitKey = `${year}_${month}`;
+        if (!cloudData.otLimits) cloudData.otLimits = {};
         cloudData.otLimits[limitKey] = this.value;
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
     function getDefaultShift(year, month, day) {
+        const shiftCycle = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
         const utcEpoch = Date.UTC(2025, 11, 31); 
         const utcTarget = Date.UTC(year, month - 1, day);
         const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
 
         if (cycleDay === 0 || cycleDay === 1) {
-            let blockStartMonth = month; 
+            let mIdx = month - 1;
             if (cycleDay === 1) {
-                const yesterday = new Date(year, month - 1, day - 1);
-                blockStartMonth = yesterday.getMonth() + 1;
+                const prevDay = new Date(year, month - 1, day - 1);
+                mIdx = prevDay.getMonth();
             }
-            const shiftTypes = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
-            return shiftTypes[blockStartMonth - 1];
+            return shiftCycle[mIdx] || '';
         }
         return ''; 
+    }
+
+    // 🌟 新增：計算全班當月加班與請假總天數
+    function calculateTotalClassStats(year, month, daysInMonth) {
+        let grandTotalOt = 0;
+        let grandTotalLv = 0;
+
+        employees.forEach(empName => {
+            for (let i = 1; i <= daysInMonth; i++) {
+                const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+                const defaultShift = getDefaultShift(year, month, i);
+                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+                let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
+                if (val === 'G') grandTotalOt++;
+                if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
+            }
+        });
+
+        if (totalOtDisplay) totalOtDisplay.textContent = `全班加班: ${grandTotalOt}天`;
+        if (totalLvDisplay) totalLvDisplay.textContent = `全班請假: ${grandTotalLv}天`;
     }
 
     function renderTable() {
@@ -618,7 +651,7 @@
         const daysInMonth = new Date(year, month, 0).getDate();
         
         const limitKey = `${year}_${month}`;
-        otLimitSelect.value = cloudData.otLimits[limitKey] !== undefined ? cloudData.otLimits[limitKey] : '';
+        otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[limitKey] !== undefined) ? cloudData.otLimits[limitKey] : '';
 
         const thead = document.getElementById('tableHead');
         const tbody = document.getElementById('tableBody');
@@ -675,28 +708,26 @@
                 <td class="col-name"><div class="cell-content">${empName}</div></td>
             `;
 
-            let otCount = 0; let lvCount = 0;
-
             for (let i = 1; i <= daysInMonth; i++) {
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
-                const savedValue = cloudData.shifts[shiftKey];
                 
+                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
-
-                if (finalValue === 'G') otCount++;
-                if (['特', '病', '事', '生'].includes(finalValue)) lvCount++;
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
                 
-                let options = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
-                if (savedValue !== undefined && !options.includes(savedValue)) { options.push(savedValue); }
-                
-                options.forEach(opt => {
+                let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
+                if (finalValue !== '' && !baseOptions.includes(finalValue)) {
+                    baseOptions.push(finalValue);
+                }
+
+                baseOptions.forEach(opt => {
                     let option = document.createElement('option');
-                    option.value = opt; option.textContent = opt;
+                    option.value = opt;
+                    option.textContent = opt;
                     if (opt === finalValue) option.selected = true;
                     select.appendChild(option);
                 });
@@ -715,7 +746,7 @@
                             if (otherEmp === empName) return; 
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
                             const def = getDefaultShift(year, month, i);
-                            const val = cloudData.shifts[key] !== undefined ? cloudData.shifts[key] : def;
+                            const val = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
                             if (val === 'G') otherOtCount++;
                         });
 
@@ -727,11 +758,13 @@
                     }
 
                     currentVal = newVal;
+                    if (!cloudData.shifts) cloudData.shifts = {};
                     cloudData.shifts[shiftKey] = newVal;
                     postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
 
                     updateCellColor(td, newVal);
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+                    calculateTotalClassStats(year, month, daysInMonth); // 🌟 即時更新全班總計
                 });
                 
                 td.appendChild(select);
@@ -740,9 +773,11 @@
             }
 
             tbody.appendChild(tr);
-            document.getElementById(otCellId).textContent = otCount;
-            document.getElementById(lvCellId).textContent = lvCount;
+            calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
+
+        // 🌟 算完個人統計後，更新全班總計
+        calculateTotalClassStats(year, month, daysInMonth);
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
@@ -750,14 +785,16 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
             const defaultShift = getDefaultShift(year, month, i);
-            const savedValue = cloudData.shifts[shiftKey];
+            const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
             let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
 
             if (val === 'G') otCount++;
             if (['特', '病', '事', '生'].includes(val)) lvCount++;
         }
-        document.getElementById(otCellId).textContent = otCount;
-        document.getElementById(lvCellId).textContent = lvCount;
+        const otElem = document.getElementById(otCellId);
+        const lvElem = document.getElementById(lvCellId);
+        if (otElem) otElem.textContent = otCount;
+        if (lvElem) lvElem.textContent = lvCount;
     }
 
     function updateCellColor(cell, value) {
@@ -781,7 +818,5 @@
     checkLoginStatus();
 </script>
 
-</body>
-</html>
 </body>
 </html>
