@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (限時開放排班-RWD優化版)</title>
+    <title>捲繞出勤表 (手動開關填表版)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;      /* 日班：淺綠 */
@@ -159,11 +159,10 @@
             box-sizing: border-box;
         }
 
-        .control-group-time {
-            background-color: #e2e3e5;
-            border: 1px solid #d6d8db;
-            flex-wrap: wrap;
-            gap: 2px;
+        .control-group-status {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            gap: 6px;
         }
 
         .control-group span {
@@ -176,16 +175,32 @@
         .time-status-badge {
             font-size: 12px;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 4px;
-            margin-left: 4px;
             white-space: nowrap;
         }
 
         .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .status-closed { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        select, input[type="datetime-local"] {
+        .toggle-switch-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+
+        .btn-open { background-color: #28a745; }
+        .btn-open:hover { background-color: #218838; }
+        .btn-closed { background-color: #6c757d; }
+        .btn-closed:hover { background-color: #5a6268; }
+
+        select {
             font-size: 13px;
             padding: 3px;
             border: 1px solid #ccc;
@@ -194,12 +209,7 @@
             outline: none;
         }
 
-        input[type="datetime-local"] {
-            background-color: #ffffff;
-            max-width: 165px;
-        }
-
-        select:disabled, input:disabled {
+        select:disabled {
             background-color: #e0e0e0;
             color: #666;
             cursor: not-allowed;
@@ -230,31 +240,16 @@
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
 
-        /* 📱 手機微調適應 (RWD Optimization) */
+        /* 📱 手機微調適應 (RWD) */
         @media screen and (max-width: 600px) {
             body { margin: 5px; }
             .header-controls { gap: 6px; }
             .left-controls { gap: 4px; width: 100%; }
             .control-group { padding: 2px; }
             .control-group span { font-size: 12px; padding: 0 2px; }
-            
-            /* 手機版將時間設定自動換成獨立單行 */
-            .control-group-time {
-                width: 100%;
-                justify-content: space-between;
-                padding: 4px;
-                margin-top: 2px;
-            }
-            
-            input[type="datetime-local"] {
-                font-size: 11px;
-                padding: 2px 1px;
-                max-width: 128px;
-            }
-
             select { font-size: 12px; padding: 2px; }
             .user-info { font-size: 12px; padding: 4px 6px; }
-            .change-pwd-btn, .logout-btn, .toggle-btn { padding: 5px 6px; font-size: 11px; }
+            .change-pwd-btn, .logout-btn, .toggle-btn, .toggle-switch-btn { padding: 5px 6px; font-size: 11px; }
         }
 
         /* ==== 表格樣式 ==== */
@@ -404,13 +399,11 @@
                 </select>
             </div>
             
-            <!-- 🌟 排班開放時段區 (手機端自適應) 🌟 -->
-            <div class="control-group control-group-time">
-                <span>開放時間:</span>
-                <input type="datetime-local" id="openTimeStartInput">
-                <span>~</span>
-                <input type="datetime-local" id="openTimeEndInput">
-                <div id="timeStatusBadge" class="time-status-badge status-closed">未開放</div>
+            <!-- 🌟 填表開放狀態控制區 🌟 -->
+            <div class="control-group control-group-status">
+                <div id="timeStatusBadge" class="time-status-badge status-closed">已關閉 / 唯讀</div>
+                <!-- 陳喬志專屬控制開關 -->
+                <button id="formStatusToggleBtn" class="toggle-switch-btn btn-closed" style="display: none;">填表開關：已關閉</button>
             </div>
         </div>
         <div class="right-controls">
@@ -430,7 +423,7 @@
 </div>
 
 <script>
-    // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
+    // ⚠️ 請填入您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJ7JIx3R9gUWCCz6mZenjEAexeVVY33-ymoQwEFtTBS2JZWnvMM_NSyii7HgoVnpD-/exec";
 
     const employees = [
@@ -445,7 +438,7 @@
         shifts: {},
         passwords: {},
         otLimits: {},
-        openTimes: {}
+        formStatus: {} // 記錄各月份開關狀態，例如 { "2026_8": "open" }
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -471,9 +464,8 @@
     const yearSelect = document.getElementById('yearSelect');
     const monthSelect = document.getElementById('monthSelect');
     const otLimitSelect = document.getElementById('otLimitSelect');
-    const openTimeStartInput = document.getElementById('openTimeStartInput');
-    const openTimeEndInput = document.getElementById('openTimeEndInput');
     const timeStatusBadge = document.getElementById('timeStatusBadge');
+    const formStatusToggleBtn = document.getElementById('formStatusToggleBtn');
     const toggleStatsBtn = document.getElementById('toggleStatsBtn');
 
     function showSync() { syncStatus.style.display = 'block'; }
@@ -621,42 +613,32 @@
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
-    function saveOpenTimes() {
+    // 🌟 點擊切換開放/關閉填表開關 🌟
+    formStatusToggleBtn.addEventListener('click', function() {
         const year = yearSelect.value;
         const month = monthSelect.value;
-        const timeKey = `${year}_${month}`;
+        const statusKey = `${year}_${month}`;
         
-        const startVal = openTimeStartInput.value;
-        const endVal = openTimeEndInput.value;
+        const currentStatus = (cloudData.formStatus && cloudData.formStatus[statusKey]) ? cloudData.formStatus[statusKey] : 'closed';
+        const newStatus = (currentStatus === 'open') ? 'closed' : 'open';
 
-        if (!cloudData.openTimes) cloudData.openTimes = {};
-        cloudData.openTimes[timeKey] = { start: startVal, end: endVal };
+        if (!cloudData.formStatus) cloudData.formStatus = {};
+        cloudData.formStatus[statusKey] = newStatus;
 
-        postCloudData({ action: 'saveOpenTimes', key: timeKey, value: { start: startVal, end: endVal } });
-        renderTable(); 
-    }
-
-    openTimeStartInput.addEventListener('change', saveOpenTimes);
-    openTimeEndInput.addEventListener('change', saveOpenTimes);
+        postCloudData({ action: 'saveFormStatus', key: statusKey, value: newStatus });
+        renderTable();
+    });
 
     function isEditAllowed() {
         const currentUser = sessionStorage.getItem('s4_current_user');
-        if (currentUser === "陳喬志") return true; 
+        if (currentUser === "陳喬志") return true; // 陳喬志永遠可修改
 
         const year = yearSelect.value;
         const month = monthSelect.value;
-        const timeKey = `${year}_${month}`;
-        const timeConfig = (cloudData.openTimes) ? cloudData.openTimes[timeKey] : null;
+        const statusKey = `${year}_${month}`;
+        const status = (cloudData.formStatus) ? cloudData.formStatus[statusKey] : 'closed';
 
-        if (!timeConfig || !timeConfig.start || !timeConfig.end) {
-            return false; 
-        }
-
-        const now = new Date();
-        const startTime = new Date(timeConfig.start);
-        const endTime = new Date(timeConfig.end);
-
-        return (now >= startTime && now <= endTime);
+        return status === 'open';
     }
 
     function getDefaultShift(year, month, day) {
@@ -685,8 +667,6 @@
         const canEdit = isEditAllowed();
 
         otLimitSelect.disabled = !isManager;
-        openTimeStartInput.disabled = !isManager;
-        openTimeEndInput.disabled = !isManager;
 
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
@@ -695,16 +675,29 @@
         const key = `${year}_${month}`;
         otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[key] !== undefined) ? cloudData.otLimits[key] : '';
 
-        const timeConfig = (cloudData.openTimes && cloudData.openTimes[key]) ? cloudData.openTimes[key] : { start: '', end: '' };
-        openTimeStartInput.value = timeConfig.start || '';
-        openTimeEndInput.value = timeConfig.end || '';
+        // 🌟 判斷並顯示開關狀態 🌟
+        const currentFormStatus = (cloudData.formStatus && cloudData.formStatus[key]) ? cloudData.formStatus[key] : 'closed';
 
-        if (canEdit) {
-            timeStatusBadge.textContent = "開放排班中";
+        if (currentFormStatus === 'open') {
+            timeStatusBadge.textContent = "開放填表中";
             timeStatusBadge.className = "time-status-badge status-open";
         } else {
             timeStatusBadge.textContent = "已關閉 / 唯讀";
             timeStatusBadge.className = "time-status-badge status-closed";
+        }
+
+        // 僅陳喬志顯示控制按鈕
+        if (isManager) {
+            formStatusToggleBtn.style.display = "inline-block";
+            if (currentFormStatus === 'open') {
+                formStatusToggleBtn.textContent = "填表開關：開放中 (點擊關閉)";
+                formStatusToggleBtn.className = "toggle-switch-btn btn-open";
+            } else {
+                formStatusToggleBtn.textContent = "填表開關：已關閉 (點擊開放)";
+                formStatusToggleBtn.className = "toggle-switch-btn btn-closed";
+            }
+        } else {
+            formStatusToggleBtn.style.display = "none";
         }
 
         const thead = document.getElementById('tableHead');
