@@ -13,8 +13,8 @@
             --bg-night: #fce4d6;    /* 夜班：淺橘 */
             --text-personal: #ffffff;
             
-            --bg-sick: #ff0000;     /* 🌟 病假：改為鮮紅色 */
-            --text-sick: #ffffff;   /* 🌟 病假文字：改為白色 */
+            --bg-sick: #ff0000;     /* 病假：鮮紅色 */
+            --text-sick: #ffffff;   /* 病假文字：白色 */
             
             --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
             --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
@@ -304,6 +304,24 @@
         .weekend-header { color: red; }
         .today-header { background-color: #00ffff !important; }
 
+        /* 🌟 當天加班總計列樣式 */
+        tr.daily-ot-row {
+            background-color: #fffbe6;
+            font-weight: bold;
+        }
+        tr.daily-ot-row td {
+            background-color: #fffbe6;
+            color: #d48806;
+            border-top: 2px solid #ffe58f;
+        }
+        tr.daily-ot-row td.col-name {
+            background-color: #fff1b8;
+            color: #873800;
+        }
+        tr.daily-ot-row td.stats-ot, tr.daily-ot-row td.stats-lv {
+            background-color: #fff1b8;
+        }
+
         .cell-content { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 38px; box-sizing: border-box; }
 
         .shift-select {
@@ -319,10 +337,7 @@
         .shift-unattended { background-color: var(--bg-unattended); color: black; font-weight: bold; }
         .shift-special { background-color: var(--bg-special); color: black; font-weight: bold; }
         .shift-personal { background-color: var(--bg-personal); color: var(--text-personal); font-weight: bold; }
-        
-        /* 🌟 病假樣式：鮮紅色背景 + 白色文字 */
         .shift-sick { background-color: var(--bg-sick); color: var(--text-sick); font-weight: bold; }
-        
         .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
         .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
     </style>
@@ -426,7 +441,7 @@
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdomLlDkFdhq8ZBZTZ_80fVYRSFTDT3vg51WxA37TtSBCN_RvbmzUfv1cZRo6KIscw/exec";
 
     const employees = [
-        "陳喬志", "廖曉彤", "楊代億", "蔡靜儀", "賴建亦", "施榮傑",
+        "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
@@ -654,6 +669,28 @@
         if (totalUaDisplay) totalUaDisplay.textContent = `全班未到: ${grandTotalUa}天`;
     }
 
+    // 🌟 計算當天加班總人數並更新底部的總計行
+    function calculateDailyOtStats(year, month, daysInMonth) {
+        for (let i = 1; i <= daysInMonth; i++) {
+            let dailyOtCount = 0;
+            employees.forEach(empName => {
+                const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+                const defaultShift = getDefaultShift(year, month, i);
+                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+                let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
+                if (val === 'G') {
+                    dailyOtCount++;
+                }
+            });
+
+            const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
+            if (dailyElem) {
+                dailyElem.textContent = dailyOtCount;
+            }
+        }
+    }
+
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
@@ -779,6 +816,7 @@
                     updateCellColor(td, newVal);
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
                     calculateTotalClassStats(year, month, daysInMonth);
+                    calculateDailyOtStats(year, month, daysInMonth); // 🌟 即時更新當天加班人數
                 });
                 
                 td.appendChild(select);
@@ -790,7 +828,24 @@
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
+        // 🌟 新增：在最後一位員工下方新增「當天加班人數」統計列
+        let trDailyOt = document.createElement('tr');
+        trDailyOt.className = 'daily-ot-row';
+        trDailyOt.innerHTML = `
+            <td class="stats-ot"><div class="cell-content">-</div></td>
+            <td class="stats-lv"><div class="cell-content">-</div></td>
+            <td class="col-name"><div class="cell-content">加班人數</div></td>
+        `;
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            let td = document.createElement('td');
+            td.innerHTML = `<div class="cell-content" id="daily_ot_${year}_${month}_${i}">0</div>`;
+            trDailyOt.appendChild(td);
+        }
+        tbody.appendChild(trDailyOt);
+
         calculateTotalClassStats(year, month, daysInMonth);
+        calculateDailyOtStats(year, month, daysInMonth); // 🌟 計算每天加班人數
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
