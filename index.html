@@ -13,7 +13,9 @@
             --bg-night: #fce4d6;    /* 夜班：淺橘 */
             --text-personal: #ffffff;
             
-            --bg-sick: #f8cecc;     /* 病假：粉紅 */
+            --bg-sick: #ff0000;     /* 🌟 病假：改為鮮紅色 */
+            --text-sick: #ffffff;   /* 🌟 病假文字：改為白色 */
+            
             --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
             --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
             --bg-unattended: #d0d0d0;/* 未到：灰色 */
@@ -166,7 +168,7 @@
             font-size: 13px;
         }
 
-        /* 🌟 全班統計資訊顯示樣式 */
+        /* 全班統計資訊顯示樣式 */
         .total-stats-group {
             display: flex;
             align-items: center;
@@ -195,7 +197,6 @@
             border-color: #ffa39e;
         }
 
-        /* 🌟 新增：全班未到統計樣式 */
         .stat-badge-ua {
             background-color: #e2e2e2;
             color: #495057;
@@ -318,7 +319,10 @@
         .shift-unattended { background-color: var(--bg-unattended); color: black; font-weight: bold; }
         .shift-special { background-color: var(--bg-special); color: black; font-weight: bold; }
         .shift-personal { background-color: var(--bg-personal); color: var(--text-personal); font-weight: bold; }
-        .shift-sick { background-color: var(--bg-sick); color: black; font-weight: bold; }
+        
+        /* 🌟 病假樣式：鮮紅色背景 + 白色文字 */
+        .shift-sick { background-color: var(--bg-sick); color: var(--text-sick); font-weight: bold; }
+        
         .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
         .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
     </style>
@@ -395,11 +399,10 @@
                     <option value="7">7</option>
                 </select>
             </div>
-            <!-- 🌟 全班統計資訊欄位（新增全班未到） -->
             <div class="total-stats-group">
                 <span id="totalOtDisplay" class="stat-badge stat-badge-ot">全班加班: 0天</span>
                 <span id="totalLvDisplay" class="stat-badge stat-badge-lv">全班請假: 0天</span>
-                <span id="totalUaDisplay" class="stat-badge stat-badge-ua">加班未到: 0人</span>
+                <span id="totalUaDisplay" class="stat-badge stat-badge-ua">全班未到: 0天</span>
             </div>
         </div>
         <div class="right-controls">
@@ -423,7 +426,7 @@
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdomLlDkFdhq8ZBZTZ_80fVYRSFTDT3vg51WxA37TtSBCN_RvbmzUfv1cZRo6KIscw/exec";
 
     const employees = [
-        "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
+        "陳喬志", "廖曉彤", "楊代億", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
@@ -461,7 +464,6 @@
     const otLimitSelect = document.getElementById('otLimitSelect');
     const toggleStatsBtn = document.getElementById('toggleStatsBtn');
 
-    // 🌟 取得全班統計 DOM 元素（包含全班未到）
     const totalOtDisplay = document.getElementById('totalOtDisplay');
     const totalLvDisplay = document.getElementById('totalLvDisplay');
     const totalUaDisplay = document.getElementById('totalUaDisplay');
@@ -629,11 +631,10 @@
         return ''; 
     }
 
-    // 🌟 計算全班當月加班、請假與未到總天數
     function calculateTotalClassStats(year, month, daysInMonth) {
         let grandTotalOt = 0;
         let grandTotalLv = 0;
-        let grandTotalUa = 0; // 新增：全班未到天數計數
+        let grandTotalUa = 0;
 
         employees.forEach(empName => {
             for (let i = 1; i <= daysInMonth; i++) {
@@ -644,13 +645,13 @@
 
                 if (val === 'G') grandTotalOt++;
                 if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
-                if (val === '未') grandTotalUa++; // 計算選取為「未」的天數
+                if (val === '未') grandTotalUa++;
             }
         });
 
         if (totalOtDisplay) totalOtDisplay.textContent = `全班加班: ${grandTotalOt}天`;
         if (totalLvDisplay) totalLvDisplay.textContent = `全班請假: ${grandTotalLv}天`;
-        if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}人`; // 即時顯示全班未到天數
+        if (totalUaDisplay) totalUaDisplay.textContent = `全班未到: ${grandTotalUa}天`;
     }
 
     function renderTable() {
@@ -777,7 +778,7 @@
 
                     updateCellColor(td, newVal);
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
-                    calculateTotalClassStats(year, month, daysInMonth); // 🌟 即時更新全班總計（含未到天數）
+                    calculateTotalClassStats(year, month, daysInMonth);
                 });
                 
                 td.appendChild(select);
@@ -789,7 +790,6 @@
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
-        // 🌟 算完個人統計後，更新全班總計
         calculateTotalClassStats(year, month, daysInMonth);
     }
 
