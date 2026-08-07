@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (限時開放排班版)</title>
+    <title>捲繞出勤表 (限時開放排班-RWD優化版)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;      /* 日班：淺綠 */
@@ -125,7 +125,7 @@
 
         .main-app { display: none; }
 
-        /* ==== 響應式頂部控制區 (RWD Mobile Optimized) ==== */
+        /* ==== 響應式頂部控制區 ==== */
         .header-controls {
             display: flex;
             align-items: center;
@@ -162,6 +162,8 @@
         .control-group-time {
             background-color: #e2e3e5;
             border: 1px solid #d6d8db;
+            flex-wrap: wrap;
+            gap: 2px;
         }
 
         .control-group span {
@@ -177,6 +179,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             margin-left: 4px;
+            white-space: nowrap;
         }
 
         .status-open { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -193,6 +196,7 @@
 
         input[type="datetime-local"] {
             background-color: #ffffff;
+            max-width: 165px;
         }
 
         select:disabled, input:disabled {
@@ -226,13 +230,29 @@
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
 
+        /* 📱 手機微調適應 (RWD Optimization) */
         @media screen and (max-width: 600px) {
             body { margin: 5px; }
             .header-controls { gap: 6px; }
-            .left-controls { gap: 4px; }
-            .control-group { padding: 1px 3px; }
+            .left-controls { gap: 4px; width: 100%; }
+            .control-group { padding: 2px; }
             .control-group span { font-size: 12px; padding: 0 2px; }
-            select, input[type="datetime-local"] { font-size: 12px; padding: 2px 2px; }
+            
+            /* 手機版將時間設定自動換成獨立單行 */
+            .control-group-time {
+                width: 100%;
+                justify-content: space-between;
+                padding: 4px;
+                margin-top: 2px;
+            }
+            
+            input[type="datetime-local"] {
+                font-size: 11px;
+                padding: 2px 1px;
+                max-width: 128px;
+            }
+
+            select { font-size: 12px; padding: 2px; }
             .user-info { font-size: 12px; padding: 4px 6px; }
             .change-pwd-btn, .logout-btn, .toggle-btn { padding: 5px 6px; font-size: 11px; }
         }
@@ -384,11 +404,11 @@
                 </select>
             </div>
             
-            <!-- 🌟 新增：排班開放時段設定區 🌟 -->
+            <!-- 🌟 排班開放時段區 (手機端自適應) 🌟 -->
             <div class="control-group control-group-time">
-                <span>排班開放時間:</span>
+                <span>開放時間:</span>
                 <input type="datetime-local" id="openTimeStartInput">
-                <span>至</span>
+                <span>~</span>
                 <input type="datetime-local" id="openTimeEndInput">
                 <div id="timeStatusBadge" class="time-status-badge status-closed">未開放</div>
             </div>
@@ -425,7 +445,7 @@
         shifts: {},
         passwords: {},
         otLimits: {},
-        openTimes: {} // 記錄各月份開放排班的起訖時間
+        openTimes: {}
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -601,7 +621,6 @@
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
-    // 🌟 儲存開放排班時間 🌟
     function saveOpenTimes() {
         const year = yearSelect.value;
         const month = monthSelect.value;
@@ -614,16 +633,15 @@
         cloudData.openTimes[timeKey] = { start: startVal, end: endVal };
 
         postCloudData({ action: 'saveOpenTimes', key: timeKey, value: { start: startVal, end: endVal } });
-        renderTable(); // 重新整理表格啟用/禁用狀態
+        renderTable(); 
     }
 
     openTimeStartInput.addEventListener('change', saveOpenTimes);
     openTimeEndInput.addEventListener('change', saveOpenTimes);
 
-    // 🌟 檢查目前時間是否處於開放排班時段 🌟
     function isEditAllowed() {
         const currentUser = sessionStorage.getItem('s4_current_user');
-        if (currentUser === "陳喬志") return true; // 陳喬志無條件可編輯
+        if (currentUser === "陳喬志") return true; 
 
         const year = yearSelect.value;
         const month = monthSelect.value;
@@ -631,7 +649,7 @@
         const timeConfig = (cloudData.openTimes) ? cloudData.openTimes[timeKey] : null;
 
         if (!timeConfig || !timeConfig.start || !timeConfig.end) {
-            return false; // 若未設定時間，預設不開放
+            return false; 
         }
 
         const now = new Date();
@@ -666,7 +684,6 @@
         const isManager = (currentUser === "陳喬志");
         const canEdit = isEditAllowed();
 
-        // 陳喬志才可以設定時間與限制
         otLimitSelect.disabled = !isManager;
         openTimeStartInput.disabled = !isManager;
         openTimeEndInput.disabled = !isManager;
@@ -678,12 +695,10 @@
         const key = `${year}_${month}`;
         otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[key] !== undefined) ? cloudData.otLimits[key] : '';
 
-        // 載入當月時間設定
         const timeConfig = (cloudData.openTimes && cloudData.openTimes[key]) ? cloudData.openTimes[key] : { start: '', end: '' };
         openTimeStartInput.value = timeConfig.start || '';
         openTimeEndInput.value = timeConfig.end || '';
 
-        // 更新狀態徽章
         if (canEdit) {
             timeStatusBadge.textContent = "開放排班中";
             timeStatusBadge.className = "time-status-badge status-open";
@@ -756,7 +771,6 @@
                 let select = document.createElement('select');
                 select.className = 'shift-select';
                 
-                // 🌟 非開放時間時，選單設為 disabled 鎖定無法修改 🌟
                 select.disabled = !canEdit;
 
                 let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
