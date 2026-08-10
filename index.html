@@ -6,17 +6,20 @@
     <title>捲繞出勤表 (雲端同步版)</title>
     <style>
         :root {
-            --bg-day: #c6e0b4;
-            --bg-g: #ffff00;
-            --bg-special: #ff00ff;
-            --bg-personal: #8064a2;
-            --bg-night: #fce4d6;
+            --bg-day: #c6e0b4;      /* 日班：淺綠 */
+            --bg-g: #ffff00;        /* G班：黃色 */
+            --bg-special: #ff00ff;  /* 特休：桃紅 */
+            --bg-personal: #8064a2; /* 事假：深紫 */
+            --bg-night: #fce4d6;    /* 夜班：淺橘 */
             --text-personal: #ffffff;
-            --bg-sick: #ff0000;
-            --text-sick: #ffffff;
-            --bg-physio: #ffe6cc;
-            --bg-typhoon: #dae8fc;
-            --bg-unattended: #d0d0d0;
+            
+            --bg-sick: #ff0000;     /* 病假：鮮紅色 */
+            --text-sick: #ffffff;   /* 病假文字：白色 */
+            
+            --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
+            --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
+            --bg-unattended: #d0d0d0;/* 未到：灰色 */
+            
             --border-color: #a0a0a0;
         }
         
@@ -27,6 +30,7 @@
             touch-action: manipulation; 
         }
 
+        /* 雲端同步狀態提示條 */
         .sync-status {
             position: fixed;
             bottom: 10px;
@@ -40,6 +44,7 @@
             z-index: 10001;
         }
 
+        /* ==== 登入與彈窗遮罩介面 ==== */
         .login-overlay {
             position: fixed;
             top: 0;
@@ -122,6 +127,7 @@
 
         .main-app { display: none; }
 
+        /* ==== 響應式頂部控制區 (RWD Mobile Optimized) ==== */
         .header-controls {
             display: flex;
             align-items: center;
@@ -160,6 +166,7 @@
             font-size: 13px;
         }
 
+        /* 全班統計資訊顯示樣式 */
         .total-stats-group {
             display: flex;
             align-items: center;
@@ -239,6 +246,7 @@
             .stat-badge { font-size: 11px; padding: 3px 5px; }
         }
 
+        /* ==== 表格樣式 ==== */
         .table-container {
             overflow: auto; 
             max-height: 80vh; 
@@ -274,7 +282,6 @@
 
         thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }
         thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; }
-        thead tr:nth-child(3) th { position: sticky; top: 76px; z-index: 1; }
 
         .stats-ot { position: sticky; left: 0; width: 40px; min-width: 40px; z-index: 2; color: #00b0f0; background-color: #e6f7ff; font-weight: bold; }
         .stats-lv { position: sticky; left: 40px; width: 40px; min-width: 40px; z-index: 2; color: #ff0000; background-color: #ffe6e6; font-weight: bold; }
@@ -334,6 +341,7 @@
 
 <div id="syncStatus" class="sync-status">☁️ 雲端同步中...</div>
 
+<!-- ==== 登入視窗 ==== -->
 <div id="loginOverlay" class="login-overlay">
     <div class="login-card">
         <h2>系統登入 (雲端版)</h2>
@@ -352,6 +360,7 @@
     </div>
 </div>
 
+<!-- ==== 修改密碼視窗 ==== -->
 <div id="changePwdModal" class="login-overlay" style="display: none; z-index: 10000;">
     <div class="login-card">
         <h2>修改密碼</h2>
@@ -375,6 +384,7 @@
     </div>
 </div>
 
+<!-- ==== 主應用程式 ==== -->
 <div id="mainApp" class="main-app">
     <div class="header-controls">
         <div class="left-controls">
@@ -423,7 +433,7 @@
 </div>
 
 <script>
-    // ⚠️ 請貼上您剛剛部署的 GAS 新網址
+    // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIGWtx4orZMZ32XtIAZVXmNEO4UJyLMkdFBXjk6RRdSvqF8QM5ovRlWvcWR0LlgqGe/exec";
 
     const employees = [
@@ -433,14 +443,12 @@
     ];
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
-    const specialOptions = ['', 'C', '颱', '豪', '歲', '旺'];
     
     let cloudData = {
         shifts: {},
         passwords: {},
         otLimits: {},
-        settings: {},
-        specials: {}
+        settings: {}
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -487,14 +495,7 @@
         try {
             const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
             const data = await resp.json();
-            if (data) {
-                cloudData = data;
-                if (!cloudData.specials) cloudData.specials = {};
-                if (!cloudData.shifts) cloudData.shifts = {};
-                if (!cloudData.passwords) cloudData.passwords = {};
-                if (!cloudData.otLimits) cloudData.otLimits = {};
-                if (!cloudData.settings) cloudData.settings = {};
-            }
+            if (data) cloudData = data;
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -505,17 +506,12 @@
     async function postCloudData(payload) {
         showSync();
         try {
-            const response = await fetch(GAS_WEB_APP_URL, {
+            await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
+                mode: 'no-cors', 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const result = await response.json();
-            console.log("雲端回應:", result);
-            if (result.status !== 'success') {
-                console.error("儲存失敗", result);
-            }
-            return result;
         } catch (err) {
             console.error("雲端寫入失敗", err);
         } finally {
@@ -534,18 +530,29 @@
     function updateFormStatusUI() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const open = isFormOpen();
-        formStatusBtn.textContent = open ? '填表：開啟' : '填表：關閉';
-        formStatusBtn.className = 'form-status-btn ' + (open ? 'open' : 'closed');
+
+        if (open) {
+            formStatusBtn.textContent = '填表：開啟';
+            formStatusBtn.className = 'form-status-btn open';
+        } else {
+            formStatusBtn.textContent = '填表：關閉';
+            formStatusBtn.className = 'form-status-btn closed';
+        }
+
+        // 僅陳喬志可點擊操作；其他人顯示為停用按鈕
         formStatusBtn.disabled = (currentUser !== "陳喬志");
     }
 
-    formStatusBtn.addEventListener('click', async function() {
+    formStatusBtn.addEventListener('click', function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (currentUser !== "陳喬志") return;
+
         const nextState = isFormOpen() ? 'closed' : 'open';
         if (!cloudData.settings) cloudData.settings = {};
         cloudData.settings['form_status'] = nextState;
-        await postCloudData({ action: 'saveSetting', key: 'form_status', value: nextState });
+
+        postCloudData({ action: 'saveSetting', key: 'form_status', value: nextState });
+
         updateFormStatusUI();
         renderTable();
     });
@@ -569,6 +576,7 @@
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
         const correctPwd = getUserPassword(selectedUser);
+
         if (selectedUser && inputPwd === correctPwd) {
             sessionStorage.setItem('s4_current_user', selectedUser);
             loginErrorMsg.style.display = 'none';
@@ -590,9 +598,11 @@
     savePwdBtn.addEventListener('click', async function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const correctPwd = getUserPassword(currentUser);
+        
         const oldVal = oldPwdInput.value;
         const newVal = newPwdInput.value;
         const confirmVal = confirmPwdInput.value;
+
         if (oldVal !== correctPwd) {
             pwdErrorMsg.textContent = "舊密碼輸入錯誤！";
             pwdErrorMsg.style.display = "block"; return;
@@ -605,9 +615,11 @@
             pwdErrorMsg.textContent = "兩次輸入的新密碼不一致！";
             pwdErrorMsg.style.display = "block"; return;
         }
+
         if(!cloudData.passwords) cloudData.passwords = {};
         cloudData.passwords[currentUser] = newVal;
-        await postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
+        postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
+
         alert("密碼修改成功！");
         changePwdModal.style.display = 'none';
     });
@@ -620,12 +632,14 @@
 
     const currentData = new Date();
     const currentYear = currentData.getFullYear();
+
     for (let y = currentYear - 5; y <= currentYear + 5; y++) {
         let option = document.createElement('option');
         option.value = y; option.text = y;
         if (y === currentYear) option.selected = true; 
         yearSelect.appendChild(option);
     }
+
     for (let m = 1; m <= 12; m++) {
         let option = document.createElement('option');
         option.value = m; option.text = m;
@@ -638,13 +652,13 @@
         this.textContent = document.body.classList.contains('hide-stats') ? '顯示統計' : '隱藏統計';
     });
 
-    otLimitSelect.addEventListener('change', async function() {
+    otLimitSelect.addEventListener('change', function() {
         const year = yearSelect.value;
         const month = monthSelect.value;
         const limitKey = `${year}_${month}`;
         if (!cloudData.otLimits) cloudData.otLimits = {};
         cloudData.otLimits[limitKey] = this.value;
-        await postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
+        postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
     function getDefaultShift(year, month, day) {
@@ -653,6 +667,7 @@
         const utcTarget = Date.UTC(year, month - 1, day);
         const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
+
         if (cycleDay === 0 || cycleDay === 1) {
             let mIdx = month - 1;
             if (cycleDay === 1) {
@@ -665,18 +680,23 @@
     }
 
     function calculateTotalClassStats(year, month, daysInMonth) {
-        let grandTotalOt = 0, grandTotalLv = 0, grandTotalUa = 0;
+        let grandTotalOt = 0;
+        let grandTotalLv = 0;
+        let grandTotalUa = 0;
+
         employees.forEach(empName => {
             for (let i = 1; i <= daysInMonth; i++) {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
                 const defaultShift = getDefaultShift(year, month, i);
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
                 if (val === 'G') grandTotalOt++;
                 if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
                 if (val === '未') grandTotalUa++;
             }
         });
+
         if (totalOtDisplay) totalOtDisplay.textContent = `全班加班: ${grandTotalOt}天`;
         if (totalLvDisplay) totalLvDisplay.textContent = `全班請假: ${grandTotalLv}天`;
         if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}天`;
@@ -686,31 +706,42 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
+            
             if (defaultShift === '日' || defaultShift === '夜') {
                 if (dailyElem) dailyElem.textContent = '';
                 continue;
             }
+
             let dailyOtCount = 0;
             employees.forEach(empName => {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
-                if (val === 'G') dailyOtCount++;
+
+                if (val === 'G') {
+                    dailyOtCount++;
+                }
             });
-            if (dailyElem) dailyElem.textContent = dailyOtCount;
+
+            if (dailyElem) {
+                dailyElem.textContent = dailyOtCount;
+            }
         }
     }
 
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
+
         updateFormStatusUI();
         const formOpen = isFormOpen();
+
         otLimitSelect.disabled = (currentUser !== "陳喬志") || !formOpen;
 
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
         const daysInMonth = new Date(year, month, 0).getDate();
+        
         const limitKey = `${year}_${month}`;
         otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[limitKey] !== undefined) ? cloudData.otLimits[limitKey] : '';
 
@@ -718,16 +749,14 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        let trSpecial = document.createElement('tr');
         let trDate = document.createElement('tr');
         let trDay = document.createElement('tr');
 
-        trSpecial.innerHTML = `
-            <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
-            <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
-            <th class="col-name"><div class="cell-content"></div></th>
+        trDate.innerHTML = `
+            <th class="col-stats stats-ot" rowspan="2"><div class="cell-content">當月<br>加班</div></th>
+            <th class="col-stats stats-lv" rowspan="2"><div class="cell-content">當月<br>請假</div></th>
+            <th class="col-name"><div class="cell-content">日期</div></th>
         `;
-        trDate.innerHTML = `<th class="col-name"><div class="cell-content">日期</div></th>`;
         trDay.innerHTML = `<th class="col-name"><div class="cell-content">星期</div></th>`;
 
         const today = new Date();
@@ -741,44 +770,6 @@
             let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             let isToday = (year === todayY && month === todayM && i === todayD);
 
-            let thSpecial = document.createElement('th');
-            let specialKey = `s4_special_${year}_${month}_${i}`;
-            let savedSpecial = (cloudData.specials && cloudData.specials[specialKey]) ? cloudData.specials[specialKey] : '';
-            let currentSpecial = savedSpecial;
-
-            let selectSpecial = document.createElement('select');
-            selectSpecial.className = 'shift-select';
-            selectSpecial.style.backgroundColor = '#f9f9f9';
-            if (currentUser !== "陳喬志" || !formOpen) selectSpecial.disabled = true;
-
-            specialOptions.forEach(opt => {
-                let option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt || '　';
-                if (opt === currentSpecial) option.selected = true;
-                selectSpecial.appendChild(option);
-            });
-
-            selectSpecial.addEventListener('change', async function() {
-                if (currentUser !== "陳喬志") {
-                    this.value = currentSpecial;
-                    return;
-                }
-                if (!isFormOpen()) {
-                    alert("目前填表已關閉，無法修改！");
-                    this.value = currentSpecial;
-                    return;
-                }
-                currentSpecial = this.value;
-                if (!cloudData.specials) cloudData.specials = {};
-                cloudData.specials[specialKey] = this.value;
-                await postCloudData({ action: 'saveSpecial', key: specialKey, value: this.value });
-            });
-
-            thSpecial.appendChild(selectSpecial);
-            if (isToday) thSpecial.classList.add('today-header');
-            trSpecial.appendChild(thSpecial);
-
             let thDate = document.createElement('th');
             thDate.innerHTML = `<div class="cell-content">${i}</div>`;
             if (isToday) thDate.classList.add('today-header');
@@ -791,16 +782,18 @@
             trDay.appendChild(thDay);
         }
 
-        thead.appendChild(trSpecial);
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
-        const visibleEmployees = (currentUser === "陳喬志") ? employees : employees.filter(emp => emp === currentUser);
+        const visibleEmployees = (currentUser === "陳喬志") 
+            ? employees 
+            : employees.filter(emp => emp === currentUser);
 
         visibleEmployees.forEach(empName => {
             let tr = document.createElement('tr');
             const otCellId = `ot_${year}_${month}_${empName}`;
             const lvCellId = `lv_${year}_${month}_${empName}`;
+
             tr.innerHTML = `
                 <td class="stats-ot"><div class="cell-content" id="${otCellId}">0</div></td>
                 <td class="stats-lv"><div class="cell-content" id="${lvCellId}">0</div></td>
@@ -811,15 +804,22 @@
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
+                
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
-                if (!formOpen) select.disabled = true;
+                
+                // 若填表已關閉，禁用班表選單
+                if (!formOpen) {
+                    select.disabled = true;
+                }
 
                 let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
-                if (finalValue !== '' && !baseOptions.includes(finalValue)) baseOptions.push(finalValue);
+                if (finalValue !== '' && !baseOptions.includes(finalValue)) {
+                    baseOptions.push(finalValue);
+                }
 
                 baseOptions.forEach(opt => {
                     let option = document.createElement('option');
@@ -830,34 +830,41 @@
                 });
 
                 let currentVal = finalValue;
-                select.addEventListener('change', async function() {
+                
+                select.addEventListener('change', function() {
                     if (!isFormOpen()) {
                         alert("目前填表已關閉，無法修改班表！");
                         this.value = currentVal;
                         return;
                     }
+
                     const newVal = this.value;
                     const limitVal = otLimitSelect.value;
+
                     if (newVal === 'G' && defaultShift === '' && limitVal !== '') {
                         const limit = parseInt(limitVal, 10);
                         let otherOtCount = 0;
+                        
                         employees.forEach(otherEmp => {
-                            if (otherEmp === empName) return;
+                            if (otherEmp === empName) return; 
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
                             const def = getDefaultShift(year, month, i);
                             const val = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
                             if (val === 'G') otherOtCount++;
                         });
+
                         if (otherOtCount >= limit) {
                             alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
-                            this.value = currentVal;
+                            this.value = currentVal; 
                             return;
                         }
                     }
+
                     currentVal = newVal;
                     if (!cloudData.shifts) cloudData.shifts = {};
                     cloudData.shifts[shiftKey] = newVal;
-                    await postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+                    postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+
                     updateCellColor(td, newVal);
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
                     calculateTotalClassStats(year, month, daysInMonth);
@@ -868,6 +875,7 @@
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
             }
+
             tbody.appendChild(tr);
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
@@ -879,6 +887,7 @@
             <td class="stats-lv"><div class="cell-content">-</div></td>
             <td class="col-name"><div class="cell-content">加班人數</div></td>
         `;
+
         for (let i = 1; i <= daysInMonth; i++) {
             let td = document.createElement('td');
             td.innerHTML = `<div class="cell-content" id="daily_ot_${year}_${month}_${i}"></div>`;
@@ -891,15 +900,18 @@
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
-        let otCount = 0, lvCount = 0;
+        let otCount = 0; 
+        let lvCount = 0;
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
             const defaultShift = getDefaultShift(year, month, i);
             const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
             let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+
             if (val === 'G') otCount++;
             if (['特', '病', '事', '生'].includes(val)) lvCount++;
         }
+
         const otElem = document.getElementById(otCellId);
         const lvElem = document.getElementById(lvCellId);
         if (otElem) otElem.textContent = otCount;
@@ -924,6 +936,7 @@
     yearSelect.addEventListener('change', renderTable);
     monthSelect.addEventListener('change', renderTable);
 
+    // 頁面初始化
     checkLoginStatus();
 </script>
 </body>
