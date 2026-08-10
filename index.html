@@ -433,11 +433,15 @@
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
     
+    // 新增列的選項
+    const specialOptions = ['', 'C', '颱', '豪', '歲', '旺'];
+    
     let cloudData = {
         shifts: {},
         passwords: {},
         otLimits: {},
-        settings: {}
+        settings: {},
+        specials: {}  // 新增：儲存特殊選項的資料
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -484,7 +488,11 @@
         try {
             const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
             const data = await resp.json();
-            if (data) cloudData = data;
+            if (data) {
+                cloudData = data;
+                // 確保 specials 存在
+                if (!cloudData.specials) cloudData.specials = {};
+            }
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -737,16 +745,16 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        // ===== 修改點：新增第三列（新的一列在日期上方） =====
-        let trNew = document.createElement('tr');   // 新增的列
-        let trDate = document.createElement('tr');  // 日期列
-        let trDay = document.createElement('tr');   // 星期列
+        // ===== 三列表頭：特殊選項列 → 日期列 → 星期列 =====
+        let trSpecial = document.createElement('tr');  // 特殊選項列
+        let trDate = document.createElement('tr');     // 日期列
+        let trDay = document.createElement('tr');      // 星期列
 
-        // 新增列的表頭
-        trNew.innerHTML = `
+        // 特殊選項列表頭（空白）
+        trSpecial.innerHTML = `
             <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
             <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
-            <th class="col-name"><div class="cell-content">新列</div></th>
+            <th class="col-name"><div class="cell-content"></div></th>
         `;
 
         // 日期列表頭
@@ -770,11 +778,52 @@
             let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             let isToday = (year === todayY && month === todayM && i === todayD);
 
-            // 新增列的 th
-            let thNew = document.createElement('th');
-            thNew.innerHTML = `<div class="cell-content">新</div>`;
-            if (isToday) thNew.classList.add('today-header');
-            trNew.appendChild(thNew);
+            // 特殊選項列的 th（包含選單）
+            let thSpecial = document.createElement('th');
+            let specialKey = `s4_special_${year}_${month}_${i}`;
+            let savedSpecial = (cloudData.specials) ? cloudData.specials[specialKey] : undefined;
+            let currentSpecial = savedSpecial || '';
+
+            let selectSpecial = document.createElement('select');
+            selectSpecial.className = 'shift-select';
+            selectSpecial.style.backgroundColor = '#f9f9f9';
+            
+            // 只有陳喬志可以修改
+            if (currentUser !== "陳喬志") {
+                selectSpecial.disabled = true;
+            }
+            if (!formOpen) {
+                selectSpecial.disabled = true;
+            }
+
+            specialOptions.forEach(opt => {
+                let option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt || '　';  // 空白選項顯示為全形空格
+                if (opt === currentSpecial) option.selected = true;
+                selectSpecial.appendChild(option);
+            });
+
+            selectSpecial.addEventListener('change', function() {
+                if (currentUser !== "陳喬志") {
+                    this.value = currentSpecial;
+                    return;
+                }
+                if (!isFormOpen()) {
+                    alert("目前填表已關閉，無法修改！");
+                    this.value = currentSpecial;
+                    return;
+                }
+
+                currentSpecial = this.value;
+                if (!cloudData.specials) cloudData.specials = {};
+                cloudData.specials[specialKey] = this.value;
+                postCloudData({ action: 'saveSpecial', key: specialKey, value: this.value });
+            });
+
+            thSpecial.appendChild(selectSpecial);
+            if (isToday) thSpecial.classList.add('today-header');
+            trSpecial.appendChild(thSpecial);
 
             // 日期列的 th
             let thDate = document.createElement('th');
@@ -790,8 +839,8 @@
             trDay.appendChild(thDay);
         }
 
-        // 依照順序加入：新列 → 日期列 → 星期列
-        thead.appendChild(trNew);
+        // 依照順序加入：特殊選項列 → 日期列 → 星期列
+        thead.appendChild(trSpecial);
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
