@@ -6,20 +6,17 @@
     <title>捲繞出勤表 (雲端同步版)</title>
     <style>
         :root {
-            --bg-day: #c6e0b4;      /* 日班：淺綠 */
-            --bg-g: #ffff00;        /* G班：黃色 */
-            --bg-special: #ff00ff;  /* 特休：桃紅 */
-            --bg-personal: #8064a2; /* 事假：深紫 */
-            --bg-night: #fce4d6;    /* 夜班：淺橘 */
+            --bg-day: #c6e0b4;
+            --bg-g: #ffff00;
+            --bg-special: #ff00ff;
+            --bg-personal: #8064a2;
+            --bg-night: #fce4d6;
             --text-personal: #ffffff;
-
-            --bg-sick: #ff0000;     /* 病假：鮮紅色 */
-            --text-sick: #ffffff;   /* 病假文字：白色 */
-
-            --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
-            --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
-            --bg-unattended: #d0d0d0;/* 未到：灰色 */
-
+            --bg-sick: #ff0000;
+            --text-sick: #ffffff;
+            --bg-physio: #ffe6cc;
+            --bg-typhoon: #dae8fc;
+            --bg-unattended: #d0d0d0;
             --border-color: #a0a0a0;
         }
 
@@ -30,7 +27,6 @@
             touch-action: manipulation;
         }
 
-        /* 雲端同步狀態提示條 */
         .sync-status {
             position: fixed;
             bottom: 10px;
@@ -44,7 +40,6 @@
             z-index: 10001;
         }
 
-        /* ==== 登入與彈窗遮罩介面 ==== */
         .login-overlay {
             position: fixed;
             top: 0;
@@ -127,7 +122,6 @@
 
         .main-app { display: none; }
 
-        /* ==== 響應式頂部控制區 (RWD Mobile Optimized) ==== */
         .header-controls {
             display: flex;
             align-items: center;
@@ -166,7 +160,6 @@
             font-size: 13px;
         }
 
-        /* 全班統計資訊顯示樣式 */
         .total-stats-group {
             display: flex;
             align-items: center;
@@ -246,7 +239,6 @@
             .stat-badge { font-size: 11px; padding: 3px 5px; }
         }
 
-        /* ==== 表格樣式 ==== */
         .table-container {
             overflow: auto;
             max-height: 80vh;
@@ -280,10 +272,9 @@
 
         th { background-color: #f2f2f2; font-weight: bold; }
 
-        /* 因為新增了班別行，共三行，調整 sticky 位置 */
-        thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }   /* 班別行 */
-        thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; } /* 日期行 */
-        thead tr:nth-child(3) th { position: sticky; top: 76px; z-index: 1; } /* 星期行 */
+        thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }
+        thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; }
+        thead tr:nth-child(3) th { position: sticky; top: 76px; z-index: 1; }
 
         .stats-ot { position: sticky; left: 0; width: 40px; min-width: 40px; z-index: 2; color: #00b0f0; background-color: #e6f7ff; font-weight: bold; }
         .stats-lv { position: sticky; left: 40px; width: 40px; min-width: 40px; z-index: 2; color: #ff0000; background-color: #ffe6e6; font-weight: bold; }
@@ -337,6 +328,26 @@
         .shift-sick { background-color: var(--bg-sick); color: var(--text-sick); font-weight: bold; }
         .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
         .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
+
+        /* 備註選單的樣式 */
+        .daily-mark-select {
+            width: 100%;
+            height: 38px;
+            border: 1px solid #ccc;
+            background-color: #ffffff;
+            font-size: 14px;
+            text-align: center;
+            text-align-last: center;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            cursor: pointer;
+            outline: none;
+        }
+        .daily-mark-select:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -450,7 +461,8 @@
         shifts: {},
         passwords: {},
         otLimits: {},
-        settings: {}
+        settings: {},
+        dailyMarks: {}   // 新增：每日備註
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -498,6 +510,16 @@
             const resp = await fetch(`${GAS_WEB_APP_URL}?action=getAllData`);
             const data = await resp.json();
             if (data) cloudData = data;
+            // 解析每日備註
+            if (cloudData.settings && cloudData.settings.dailyMarks) {
+                try {
+                    cloudData.dailyMarks = JSON.parse(cloudData.settings.dailyMarks);
+                } catch (e) {
+                    cloudData.dailyMarks = {};
+                }
+            } else {
+                cloudData.dailyMarks = {};
+            }
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -521,6 +543,14 @@
         }
     }
 
+    // 儲存每日備註到雲端
+    async function saveDailyMarks() {
+        const serialized = JSON.stringify(cloudData.dailyMarks);
+        if (!cloudData.settings) cloudData.settings = {};
+        cloudData.settings.dailyMarks = serialized;
+        await postCloudData({ action: 'saveSetting', key: 'dailyMarks', value: serialized });
+    }
+
     function getUserPassword(empName) {
         return (cloudData.passwords && cloudData.passwords[empName]) ? cloudData.passwords[empName] : "0000";
     }
@@ -541,7 +571,6 @@
             formStatusBtn.className = 'form-status-btn closed';
         }
 
-        // 僅陳喬志可點擊操作；其他人顯示為停用按鈕
         formStatusBtn.disabled = (currentUser !== "陳喬志");
     }
 
@@ -751,12 +780,12 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        // ---------- 新增：預設班別行（第一行）----------
-        let trShift = document.createElement('tr');
-        trShift.innerHTML = `
+        // ---------- 備註行（第一行，可編輯選單）----------
+        let trMark = document.createElement('tr');
+        trMark.innerHTML = `
             <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
             <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
-            <th class="col-name"><div class="cell-content">班別</div></th>
+            <th class="col-name"><div class="cell-content"></div></th>
         `;
 
         // ---------- 日期行（第二行）----------
@@ -773,17 +802,39 @@
         const todayD = today.getDate();
 
         for (let i = 1; i <= daysInMonth; i++) {
-            const defaultShift = getDefaultShift(year, month, i);
+            const markKey = `${year}_${month}_${i}`;
             const dateObj = new Date(year, month - 1, i);
             const dayOfWeek = dateObj.getDay();
             const isToday = (year === todayY && month === todayM && i === todayD);
 
-            // 班別欄位
-            let thShift = document.createElement('th');
-            thShift.innerHTML = `<div class="cell-content">${defaultShift || ''}</div>`;
-            if (defaultShift === '日') thShift.style.backgroundColor = '#c6e0b4';
-            else if (defaultShift === '夜') thShift.style.backgroundColor = '#fce4d6';
-            trShift.appendChild(thShift);
+            // 建立備註選單 th
+            let thMark = document.createElement('th');
+            let selectMark = document.createElement('select');
+            selectMark.className = 'daily-mark-select';
+            const markOptions = ['', 'C', '颱', '豪', '歲', '旺'];
+            markOptions.forEach(opt => {
+                let option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                selectMark.appendChild(option);
+            });
+
+            const currentMark = cloudData.dailyMarks[markKey] || '';
+            selectMark.value = currentMark;
+
+            // 只有陳喬志可以修改
+            if (currentUser !== "陳喬志") {
+                selectMark.disabled = true;
+            }
+
+            selectMark.addEventListener('change', function() {
+                const newMark = this.value;
+                cloudData.dailyMarks[markKey] = newMark;
+                saveDailyMarks();  // 異動即儲存
+            });
+
+            thMark.appendChild(selectMark);
+            trMark.appendChild(thMark);
 
             // 日期欄位
             let thDate = document.createElement('th');
@@ -799,11 +850,11 @@
             trDay.appendChild(thDay);
         }
 
-        thead.appendChild(trShift);
+        thead.appendChild(trMark);
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
-        // ---------- 員工資料行（不變）----------
+        // ---------- 員工資料行 ----------
         const visibleEmployees = (currentUser === "陳喬志")
             ? employees
             : employees.filter(emp => emp === currentUser);
@@ -955,7 +1006,6 @@
     yearSelect.addEventListener('change', renderTable);
     monthSelect.addEventListener('change', renderTable);
 
-    // 頁面初始化
     checkLoginStatus();
 </script>
 </body>
