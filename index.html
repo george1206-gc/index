@@ -12,22 +12,22 @@
             --bg-personal: #8064a2; /* 事假：深紫 */
             --bg-night: #fce4d6;    /* 夜班：淺橘 */
             --text-personal: #ffffff;
-            
+
             --bg-sick: #ff0000;     /* 病假：鮮紅色 */
             --text-sick: #ffffff;   /* 病假文字：白色 */
-            
+
             --bg-physio: #ffe6cc;   /* 生理假：淺橘 */
             --bg-typhoon: #dae8fc;  /* 颱風假：淺藍 */
             --bg-unattended: #d0d0d0;/* 未到：灰色 */
-            
+
             --border-color: #a0a0a0;
         }
-        
+
         body {
             font-family: "Microsoft JhengHei", Arial, sans-serif;
             margin: 10px;
             background-color: #fcfcfc;
-            touch-action: manipulation; 
+            touch-action: manipulation;
         }
 
         /* 雲端同步狀態提示條 */
@@ -131,8 +131,8 @@
         .header-controls {
             display: flex;
             align-items: center;
-            justify-content: space-between; 
-            flex-wrap: wrap; 
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 10px;
             width: 100%;
@@ -142,7 +142,7 @@
         .left-controls, .right-controls {
             display: flex;
             align-items: center;
-            flex-wrap: wrap; 
+            flex-wrap: wrap;
             gap: 6px;
             max-width: 100%;
         }
@@ -162,7 +162,7 @@
         .control-group span {
             font-weight: bold;
             padding: 0 4px;
-            white-space: nowrap; 
+            white-space: nowrap;
             font-size: 13px;
         }
 
@@ -226,7 +226,7 @@
         .change-pwd-btn { background-color: #17a2b8; }
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
-        
+
         .form-status-btn.open { background-color: #28a745; }
         .form-status-btn.closed { background-color: #6c757d; }
         .form-status-btn:disabled {
@@ -248,15 +248,15 @@
 
         /* ==== 表格樣式 ==== */
         .table-container {
-            overflow: auto; 
-            max-height: 80vh; 
+            overflow: auto;
+            max-height: 80vh;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             background-color: white;
-            -webkit-overflow-scrolling: touch; 
+            -webkit-overflow-scrolling: touch;
         }
 
         table {
-            border-collapse: separate; 
+            border-collapse: separate;
             border-spacing: 0;
             width: 100%;
             text-align: center;
@@ -268,9 +268,9 @@
         th, td {
             border-right: 1px solid var(--border-color);
             border-bottom: 1px solid var(--border-color);
-            padding: 0; 
-            min-width: 32px; 
-            height: 38px; 
+            padding: 0;
+            min-width: 32px;
+            height: 38px;
             box-sizing: border-box;
             background-clip: padding-box;
         }
@@ -280,13 +280,15 @@
 
         th { background-color: #f2f2f2; font-weight: bold; }
 
-        thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }
-        thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; }
+        /* 因為新增了班別行，共三行，調整 sticky 位置 */
+        thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 1; }   /* 班別行 */
+        thead tr:nth-child(2) th { position: sticky; top: 38px; z-index: 1; } /* 日期行 */
+        thead tr:nth-child(3) th { position: sticky; top: 76px; z-index: 1; } /* 星期行 */
 
         .stats-ot { position: sticky; left: 0; width: 40px; min-width: 40px; z-index: 2; color: #00b0f0; background-color: #e6f7ff; font-weight: bold; }
         .stats-lv { position: sticky; left: 40px; width: 40px; min-width: 40px; z-index: 2; color: #ff0000; background-color: #ffe6e6; font-weight: bold; }
         .col-name { position: sticky; left: 80px; width: 65px; min-width: 65px; z-index: 2; font-weight: bold; background-color: #fafafa; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.3); }
-        
+
         thead th.stats-ot, thead th.stats-lv, thead th.col-name { z-index: 3 !important; background-color: #e0e0e0; color: black; }
 
         body.hide-stats .stats-ot, body.hide-stats .stats-lv { display: none !important; }
@@ -434,16 +436,16 @@
 
 <script>
     // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIGWtx4orZMZ32XtIAZVXmNEO4UJyLMkdFBXjk6RRdSvqF8QM5ovRlWvcWR0LlgqGe/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5qf_5Gf_4isMufDm80-3C0RlKWjlsTmqgkWyNOjMuvdKsWpWVOVwqFZcGAxIK_ZZK/exec";
 
     const employees = [
         "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
-        "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
+        "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特",
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
-    
+
     let cloudData = {
         shifts: {},
         passwords: {},
@@ -457,7 +459,7 @@
     const loginPasswordInput = document.getElementById('loginPasswordInput');
     const loginSubmitBtn = document.getElementById('loginSubmitBtn');
     const loginErrorMsg = document.getElementById('loginErrorMsg');
-    
+
     const changePwdModal = document.getElementById('changePwdModal');
     const oldPwdInput = document.getElementById('oldPwdInput');
     const newPwdInput = document.getElementById('newPwdInput');
@@ -508,7 +510,7 @@
         try {
             await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', 
+                mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -598,7 +600,7 @@
     savePwdBtn.addEventListener('click', async function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const correctPwd = getUserPassword(currentUser);
-        
+
         const oldVal = oldPwdInput.value;
         const newVal = newPwdInput.value;
         const confirmVal = confirmPwdInput.value;
@@ -636,14 +638,14 @@
     for (let y = currentYear - 5; y <= currentYear + 5; y++) {
         let option = document.createElement('option');
         option.value = y; option.text = y;
-        if (y === currentYear) option.selected = true; 
+        if (y === currentYear) option.selected = true;
         yearSelect.appendChild(option);
     }
 
     for (let m = 1; m <= 12; m++) {
         let option = document.createElement('option');
         option.value = m; option.text = m;
-        if (m === (currentData.getMonth() + 1)) option.selected = true; 
+        if (m === (currentData.getMonth() + 1)) option.selected = true;
         monthSelect.appendChild(option);
     }
 
@@ -663,7 +665,7 @@
 
     function getDefaultShift(year, month, day) {
         const shiftCycle = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
-        const utcEpoch = Date.UTC(2025, 11, 31); 
+        const utcEpoch = Date.UTC(2025, 11, 31);
         const utcTarget = Date.UTC(year, month - 1, day);
         const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
@@ -676,7 +678,7 @@
             }
             return shiftCycle[mIdx] || '';
         }
-        return ''; 
+        return '';
     }
 
     function calculateTotalClassStats(year, month, daysInMonth) {
@@ -706,7 +708,7 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
-            
+
             if (defaultShift === '日' || defaultShift === '夜') {
                 if (dailyElem) dailyElem.textContent = '';
                 continue;
@@ -741,7 +743,7 @@
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
         const daysInMonth = new Date(year, month, 0).getDate();
-        
+
         const limitKey = `${year}_${month}`;
         otLimitSelect.value = (cloudData.otLimits && cloudData.otLimits[limitKey] !== undefined) ? cloudData.otLimits[limitKey] : '';
 
@@ -749,14 +751,20 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        let trDate = document.createElement('tr');
-        let trDay = document.createElement('tr');
-
-        trDate.innerHTML = `
-            <th class="col-stats stats-ot" rowspan="2"><div class="cell-content">當月<br>加班</div></th>
-            <th class="col-stats stats-lv" rowspan="2"><div class="cell-content">當月<br>請假</div></th>
-            <th class="col-name"><div class="cell-content">日期</div></th>
+        // ---------- 新增：預設班別行（第一行）----------
+        let trShift = document.createElement('tr');
+        trShift.innerHTML = `
+            <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
+            <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
+            <th class="col-name"><div class="cell-content">班別</div></th>
         `;
+
+        // ---------- 日期行（第二行）----------
+        let trDate = document.createElement('tr');
+        trDate.innerHTML = `<th class="col-name"><div class="cell-content">日期</div></th>`;
+
+        // ---------- 星期行（第三行）----------
+        let trDay = document.createElement('tr');
         trDay.innerHTML = `<th class="col-name"><div class="cell-content">星期</div></th>`;
 
         const today = new Date();
@@ -765,28 +773,39 @@
         const todayD = today.getDate();
 
         for (let i = 1; i <= daysInMonth; i++) {
-            let dateObj = new Date(year, month - 1, i);
-            let dayOfWeek = dateObj.getDay();
-            let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-            let isToday = (year === todayY && month === todayM && i === todayD);
+            const defaultShift = getDefaultShift(year, month, i);
+            const dateObj = new Date(year, month - 1, i);
+            const dayOfWeek = dateObj.getDay();
+            const isToday = (year === todayY && month === todayM && i === todayD);
 
+            // 班別欄位
+            let thShift = document.createElement('th');
+            thShift.innerHTML = `<div class="cell-content">${defaultShift || ''}</div>`;
+            if (defaultShift === '日') thShift.style.backgroundColor = '#c6e0b4';
+            else if (defaultShift === '夜') thShift.style.backgroundColor = '#fce4d6';
+            trShift.appendChild(thShift);
+
+            // 日期欄位
             let thDate = document.createElement('th');
             thDate.innerHTML = `<div class="cell-content">${i}</div>`;
             if (isToday) thDate.classList.add('today-header');
             trDate.appendChild(thDate);
 
+            // 星期欄位
             let thDay = document.createElement('th');
             thDay.innerHTML = `<div class="cell-content">${weekDaysTW[dayOfWeek]}</div>`;
-            if (isWeekend) thDay.classList.add('weekend-header');
+            if (dayOfWeek === 0 || dayOfWeek === 6) thDay.classList.add('weekend-header');
             if (isToday) thDay.classList.add('today-header');
             trDay.appendChild(thDay);
         }
 
+        thead.appendChild(trShift);
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
-        const visibleEmployees = (currentUser === "陳喬志") 
-            ? employees 
+        // ---------- 員工資料行（不變）----------
+        const visibleEmployees = (currentUser === "陳喬志")
+            ? employees
             : employees.filter(emp => emp === currentUser);
 
         visibleEmployees.forEach(empName => {
@@ -804,14 +823,13 @@
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
-                
+
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
-                
-                // 若填表已關閉，禁用班表選單
+
                 if (!formOpen) {
                     select.disabled = true;
                 }
@@ -830,7 +848,7 @@
                 });
 
                 let currentVal = finalValue;
-                
+
                 select.addEventListener('change', function() {
                     if (!isFormOpen()) {
                         alert("目前填表已關閉，無法修改班表！");
@@ -844,9 +862,9 @@
                     if (newVal === 'G' && defaultShift === '' && limitVal !== '') {
                         const limit = parseInt(limitVal, 10);
                         let otherOtCount = 0;
-                        
+
                         employees.forEach(otherEmp => {
-                            if (otherEmp === empName) return; 
+                            if (otherEmp === empName) return;
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
                             const def = getDefaultShift(year, month, i);
                             const val = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
@@ -855,7 +873,7 @@
 
                         if (otherOtCount >= limit) {
                             alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
-                            this.value = currentVal; 
+                            this.value = currentVal;
                             return;
                         }
                     }
@@ -870,7 +888,7 @@
                     calculateTotalClassStats(year, month, daysInMonth);
                     calculateDailyOtStats(year, month, daysInMonth);
                 });
-                
+
                 td.appendChild(select);
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
@@ -880,6 +898,7 @@
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
+        // 每日加班人數統計行
         let trDailyOt = document.createElement('tr');
         trDailyOt.className = 'daily-ot-row';
         trDailyOt.innerHTML = `
@@ -900,7 +919,7 @@
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
-        let otCount = 0; 
+        let otCount = 0;
         let lvCount = 0;
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
