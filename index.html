@@ -224,13 +224,13 @@
         .form-status-btn.closed { background-color: #6c757d; }
         .form-status-btn:disabled { cursor: not-allowed; opacity: 0.85; }
 
-        /* =================== 超明顯的固定懸浮確認按鈕 =================== */
+        /* =================== 確認按鈕 =================== */
         .btn-confirm {
             position: fixed;
             bottom: 25px;
             right: 25px;
             z-index: 9999;
-            display: block; /* 強制顯示 */
+            display: block;
             
             padding: 15px 25px;
             font-size: 20px;
@@ -253,7 +253,7 @@
             transform: scale(0.95);
         }
         .btn-confirm:disabled {
-            background-color: #a0a0a0; /* 無異動時的灰色 */
+            background-color: #a0a0a0;
             box-shadow: none;
             cursor: default;
             transform: scale(1);
@@ -266,14 +266,13 @@
                 font-size: 17px;
             }
         }
-        /* ============================================================= */
 
-        /* =================== 自定義成功彈窗樣式 =================== */
+        /* =================== 中英雙語自定義彈窗 (確認/成功) =================== */
         .custom-modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            display: none; /* 預設隱藏 */
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 10000;
@@ -282,7 +281,7 @@
             background-color: #ffffff;
             padding: 40px 30px;
             border-radius: 16px;
-            max-width: 400px;
+            max-width: 450px;
             width: 90%;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
@@ -295,30 +294,45 @@
         .custom-modal-box h3 {
             margin-top: 0;
             margin-bottom: 25px;
-            color: #28a745;
             font-size: 22px;
             line-height: 1.5;
         }
         .custom-modal-box p {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 20px;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        .modal-btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .modal-btn-confirm, .modal-btn-cancel {
+            padding: 12px 30px;
+            font-size: 17px;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
         }
         .modal-btn-confirm {
-            padding: 12px 40px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
             background-color: #28a745;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
+            color: #fff;
         }
         .modal-btn-confirm:hover {
             background-color: #218838;
         }
-        /* ========================================================== */
+        .modal-btn-cancel {
+            background-color: #e9ecef;
+            color: #333;
+            border: 1px solid #ced4da;
+        }
+        .modal-btn-cancel:hover {
+            background-color: #dde0e3;
+        }
+        /* ============================================================== */
 
         .table-container {
             overflow: auto;
@@ -410,7 +424,6 @@
         .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
         .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
 
-        /* 備註選單的樣式 */
         .daily-mark-select {
             width: 100%;
             height: 38px;
@@ -430,7 +443,6 @@
             cursor: not-allowed;
         }
 
-        /* 等待確認的未儲存標記 (黃色邊框/底色) */
         td.pending-edit select {
             outline: 3px solid #ffc107;
             background-color: #fff3cd !important;
@@ -439,9 +451,7 @@
 </head>
 <body>
 
-<!-- 固定浮動大按鈕：強制永遠顯示！（登入後就會在右下角看到） -->
 <button id="confirmBtn" class="btn-confirm" disabled>✔ Confirm / 確認儲存 (0)</button>
-
 <div id="syncStatus" class="sync-status">☁️ 雲端同步中...</div>
 
 <!-- ==== 登入視窗 ==== -->
@@ -487,11 +497,25 @@
     </div>
 </div>
 
-<!-- ==== 自定義中英文提示彈窗 ==== -->
+<!-- ==== 自定義雙語確認視窗 ==== -->
+<div id="confirmModal" class="custom-modal-overlay">
+    <div class="custom-modal-box">
+        <h3 id="confirmModalTitle">Confirm / 確認動作</h3>
+        <p id="confirmModalText">Are you sure you want to save the changes? / 確定要儲存異動資料嗎？</p>
+        <div class="modal-btn-group">
+            <button id="confirmModalYes" class="modal-btn-confirm">Confirm / 確定</button>
+            <button id="confirmModalNo" class="modal-btn-cancel">Cancel / 取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==== 自定義成功提示視窗 ==== -->
 <div id="successModal" class="custom-modal-overlay">
     <div class="custom-modal-box">
         <h3>Data saved successfully!<br>資料儲存成功！</h3>
-        <button id="modalConfirmBtn" class="modal-btn-confirm">Confirm / 確認</button>
+        <div class="modal-btn-group" style="justify-content: center;">
+            <button id="modalConfirmBtn" class="modal-btn-confirm">Confirm / 確認</button>
+        </div>
     </div>
 </div>
 
@@ -544,7 +568,6 @@
 </div>
 
 <script>
-    // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5qf_5Gf_4isMufDm80-3C0RlKWjlsTmqgkWyNOjMuvdKsWpWVOVwqFZcGAxIK_ZZK/exec";
 
     const employees = [
@@ -555,15 +578,7 @@
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
 
-    let cloudData = {
-        shifts: {},
-        passwords: {},
-        otLimits: {},
-        settings: {},
-        dailyMarks: {}   
-    };
-
-    // 等待確認儲存的暫存區
+    let cloudData = { shifts: {}, passwords: {}, otLimits: {}, settings: {}, dailyMarks: {} };
     let pendingChanges = {};
 
     const syncStatus = document.getElementById('syncStatus');
@@ -588,6 +603,11 @@
     const formStatusBtn = document.getElementById('formStatusBtn');
     
     const confirmBtn = document.getElementById('confirmBtn');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmModalText = document.getElementById('confirmModalText');
+    const confirmModalYes = document.getElementById('confirmModalYes');
+    const confirmModalNo = document.getElementById('confirmModalNo');
+
     const successModal = document.getElementById('successModal');
     const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
@@ -665,7 +685,6 @@
     function updateFormStatusUI() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const open = isFormOpen();
-
         if (open) {
             formStatusBtn.textContent = '填表：開啟';
             formStatusBtn.className = 'form-status-btn open';
@@ -673,20 +692,16 @@
             formStatusBtn.textContent = '填表：關閉';
             formStatusBtn.className = 'form-status-btn closed';
         }
-
         formStatusBtn.disabled = (currentUser !== "陳喬志");
     }
 
     formStatusBtn.addEventListener('click', function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (currentUser !== "陳喬志") return;
-
         const nextState = isFormOpen() ? 'closed' : 'open';
         if (!cloudData.settings) cloudData.settings = {};
         cloudData.settings['form_status'] = nextState;
-
         postCloudData({ action: 'saveSetting', key: 'form_status', value: nextState });
-
         updateFormStatusUI();
         renderTable();
     });
@@ -710,7 +725,6 @@
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
         const correctPwd = getUserPassword(selectedUser);
-
         if (selectedUser && inputPwd === correctPwd) {
             sessionStorage.setItem('s4_current_user', selectedUser);
             loginErrorMsg.style.display = 'none';
@@ -732,11 +746,9 @@
     savePwdBtn.addEventListener('click', async function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const correctPwd = getUserPassword(currentUser);
-
         const oldVal = oldPwdInput.value;
         const newVal = newPwdInput.value;
         const confirmVal = confirmPwdInput.value;
-
         if (oldVal !== correctPwd) {
             pwdErrorMsg.textContent = "舊密碼輸入錯誤！";
             pwdErrorMsg.style.display = "block"; return;
@@ -749,11 +761,9 @@
             pwdErrorMsg.textContent = "兩次輸入的新密碼不一致！";
             pwdErrorMsg.style.display = "block"; return;
         }
-
         if(!cloudData.passwords) cloudData.passwords = {};
         cloudData.passwords[currentUser] = newVal;
         postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
-
         alert("密碼修改成功！");
         changePwdModal.style.display = 'none';
     });
@@ -801,7 +811,6 @@
         const utcTarget = Date.UTC(year, month - 1, day);
         const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
-
         if (cycleDay === 0 || cycleDay === 1) {
             let mIdx = month - 1;
             if (cycleDay === 1) {
@@ -814,10 +823,7 @@
     }
 
     function calculateTotalClassStats(year, month, daysInMonth) {
-        let grandTotalOt = 0;
-        let grandTotalLv = 0;
-        let grandTotalUa = 0;
-
+        let grandTotalOt = 0, grandTotalLv = 0, grandTotalUa = 0;
         employees.forEach(empName => {
             for (let i = 1; i <= daysInMonth; i++) {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
@@ -829,13 +835,11 @@
                     const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                     val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
                 }
-
                 if (val === 'G') grandTotalOt++;
                 if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
                 if (val === '未') grandTotalUa++;
             }
         });
-
         if (totalOtDisplay) totalOtDisplay.textContent = `全班加班: ${grandTotalOt}天`;
         if (totalLvDisplay) totalLvDisplay.textContent = `全班請假: ${grandTotalLv}天`;
         if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}天`;
@@ -845,7 +849,6 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
-
             let dailyOtCount = 0;
             employees.forEach(empName => {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
@@ -856,19 +859,16 @@
                     const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                     val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
                 }
-
                 if (val === 'G') {
                     dailyOtCount++;
                 }
             });
-
             if (dailyElem) {
                 dailyElem.textContent = dailyOtCount;
             }
         }
     }
 
-    // ========= 更新右下角確認按鈕狀態 =========
     function updateConfirmBtnState() {
         const count = Object.keys(pendingChanges).length;
         confirmBtn.innerHTML = `✔ Confirm / 確認儲存 (${count})`;
@@ -880,26 +880,50 @@
             confirmBtn.classList.add('btn-disabled');
         }
     }
-    // ==========================================
 
-    // ========= 自定義彈窗控制 =========
+    // ========= 核心：雙語確認彈窗 (覆蓋原生 confirm) =========
+    function showConfirmModal(message) {
+        return new Promise((resolve) => {
+            confirmModalText.textContent = message;
+            confirmModal.style.display = 'flex';
+
+            confirmModalYes.onclick = function() {
+                confirmModal.style.display = 'none';
+                resolve(true);
+            };
+            confirmModalNo.onclick = function() {
+                confirmModal.style.display = 'none';
+                resolve(false);
+            };
+            // 點擊背景也可關閉並視為取消
+            confirmModal.onclick = function(e) {
+                if (e.target === this) {
+                    this.style.display = 'none';
+                    resolve(false);
+                }
+            };
+        });
+    }
+    // ==========================================================
+
     modalConfirmBtn.addEventListener('click', function() {
         successModal.style.display = 'none';
     });
-    // 點擊彈窗外部也可以關閉
     successModal.addEventListener('click', function(e) {
         if (e.target === this) {
             this.style.display = 'none';
         }
     });
-    // ==================================
 
-    // 確認按鈕動作
+    // 右下角確認儲存按鈕的點擊事件
     confirmBtn.addEventListener('click', async function() {
         const keys = Object.keys(pendingChanges);
         if (keys.length === 0) return;
 
-        const confirmSave = confirm(`確定要儲存目前 ${keys.length} 筆異動資料嗎？`);
+        // 改為呼叫自定義彈窗，不會顯示紅線網址，且為中英文
+        const confirmSave = await showConfirmModal(
+            `Are you sure you want to save the ${keys.length} pending change(s)? / 確定要儲存目前 ${keys.length} 筆異動資料嗎？`
+        );
         if (!confirmSave) return;
 
         showSync();
@@ -915,7 +939,6 @@
                     body: JSON.stringify({ action: 'saveShift', key: key, value: val })
                 }));
             }
-            
             await Promise.all(promises);
 
             for (const [key, val] of Object.entries(pendingChanges)) {
@@ -927,7 +950,6 @@
                 el.classList.remove('pending-edit');
             });
             
-            // 更新按鈕為 0 筆
             updateConfirmBtnState();
 
             const year = parseInt(yearSelect.value);
@@ -941,12 +963,11 @@
             calculateTotalClassStats(year, month, daysInMonth);
             calculateDailyOtStats(year, month, daysInMonth);
             
-            // 取代 alert，直接跳出中英文自定義視窗！
+            // 中英文成功視窗
             successModal.style.display = 'flex';
 
         } catch (err) {
             console.error("儲存異常", err);
-            // 失敗時依然用原生 alert 提示錯誤訊息
             alert("❌ Data save failed. Please try again later. / 資料儲存失敗，請稍後再試！");
         } finally {
             hideSync();
@@ -974,19 +995,14 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        // ---------- 備註行（第一行）----------
         let trMark = document.createElement('tr');
         trMark.innerHTML = `
             <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
             <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
             <th class="col-name"><div class="cell-content">S4</div></th>
         `;
-
-        // ---------- 日期行（第二行）----------
         let trDate = document.createElement('tr');
         trDate.innerHTML = `<th class="col-name"><div class="cell-content">日期</div></th>`;
-
-        // ---------- 星期行（第三行）----------
         let trDay = document.createElement('tr');
         trDay.innerHTML = `<th class="col-name"><div class="cell-content">星期</div></th>`;
 
@@ -1001,7 +1017,6 @@
             const dayOfWeek = dateObj.getDay();
             const isToday = (year === todayY && month === todayM && i === todayD);
 
-            // 建立備註選單 th
             let thMark = document.createElement('th');
             let selectMark = document.createElement('select');
             selectMark.className = 'daily-mark-select';
@@ -1012,30 +1027,24 @@
                 option.textContent = opt;
                 selectMark.appendChild(option);
             });
-
             const currentMark = cloudData.dailyMarks[markKey] || '';
             selectMark.value = currentMark;
-
             if (currentUser !== "陳喬志") {
                 selectMark.disabled = true;
             }
-
             selectMark.addEventListener('change', function() {
                 const newMark = this.value;
                 cloudData.dailyMarks[markKey] = newMark;
                 saveDailyMarks(); 
             });
-
             thMark.appendChild(selectMark);
             trMark.appendChild(thMark);
 
-            // 日期欄位
             let thDate = document.createElement('th');
             thDate.innerHTML = `<div class="cell-content">${i}</div>`;
             if (isToday) thDate.classList.add('today-header');
             trDate.appendChild(thDate);
 
-            // 星期欄位
             let thDay = document.createElement('th');
             thDay.innerHTML = `<div class="cell-content">${weekDaysTW[dayOfWeek]}</div>`;
             if (dayOfWeek === 0 || dayOfWeek === 6) thDay.classList.add('weekend-header');
@@ -1047,7 +1056,6 @@
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
-        // ---------- 員工資料行 ----------
         const visibleEmployees = (currentUser === "陳喬志")
             ? employees
             : employees.filter(emp => emp === currentUser);
@@ -1056,7 +1064,6 @@
             let tr = document.createElement('tr');
             const otCellId = `ot_${year}_${month}_${empName}`;
             const lvCellId = `lv_${year}_${month}_${empName}`;
-
             tr.innerHTML = `
                 <td class="stats-ot"><div class="cell-content" id="${otCellId}">0</div></td>
                 <td class="stats-lv"><div class="cell-content" id="${lvCellId}">0</div></td>
@@ -1067,7 +1074,6 @@
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
-                
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
                 if (pendingChanges[shiftKey] !== undefined) {
@@ -1076,16 +1082,13 @@
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
-
                 if (!formOpen) {
                     select.disabled = true;
                 }
-
                 let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
                 if (finalValue !== '' && !baseOptions.includes(finalValue)) {
                     baseOptions.push(finalValue);
                 }
-
                 baseOptions.forEach(opt => {
                     let option = document.createElement('option');
                     option.value = opt;
@@ -1094,21 +1097,17 @@
                     select.appendChild(option);
                 });
 
-                // 下拉選單變更 -> 放入暫存區
                 select.addEventListener('change', function() {
                     if (!isFormOpen()) {
                         alert("目前填表已關閉，無法修改班表！");
                         this.value = finalValue;
                         return;
                     }
-
                     const newVal = this.value;
                     const limitVal = otLimitSelect.value;
-
                     if (newVal === 'G' && defaultShift === '' && limitVal !== '') {
                         const limit = parseInt(limitVal, 10);
                         let otherOtCount = 0;
-
                         employees.forEach(otherEmp => {
                             if (otherEmp === empName) return;
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
@@ -1122,7 +1121,6 @@
                             }
                             if (val === 'G') otherOtCount++;
                         });
-
                         if (otherOtCount >= limit) {
                             alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
                             this.value = finalValue;
@@ -1132,15 +1130,11 @@
 
                     pendingChanges[shiftKey] = newVal;
                     finalValue = newVal;
-                    
                     td.classList.add('pending-edit');
                     updateCellColor(td, newVal);
-                    
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
                     calculateTotalClassStats(year, month, daysInMonth);
                     calculateDailyOtStats(year, month, daysInMonth);
-
-                    // 有變更時，立刻啟用右下角的確認按鈕！
                     updateConfirmBtnState();
                 });
 
@@ -1151,12 +1145,10 @@
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
             }
-
             tbody.appendChild(tr);
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
-        // 每日加班人數統計行
         let trDailyOt = document.createElement('tr');
         trDailyOt.className = 'daily-ot-row';
         trDailyOt.innerHTML = `
@@ -1164,7 +1156,6 @@
             <td class="stats-lv"><div class="cell-content">-</div></td>
             <td class="col-name"><div class="cell-content">加班人數</div></td>
         `;
-
         for (let i = 1; i <= daysInMonth; i++) {
             let td = document.createElement('td');
             td.innerHTML = `<div class="cell-content" id="daily_ot_${year}_${month}_${i}"></div>`;
@@ -1174,8 +1165,6 @@
 
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
-        
-        // 初始化/重繪表格時，確保右下角按鈕狀態正確（會顯示 0 筆）
         updateConfirmBtnState();
     }
 
@@ -1185,7 +1174,6 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
             const defaultShift = getDefaultShift(year, month, i);
-            
             let val;
             if (pendingChanges[shiftKey] !== undefined) {
                 val = pendingChanges[shiftKey];
@@ -1193,11 +1181,9 @@
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
             }
-
             if (val === 'G') otCount++;
             if (['特', '病', '事', '生'].includes(val)) lvCount++;
         }
-
         const otElem = document.getElementById(otCellId);
         const lvElem = document.getElementById(lvCellId);
         if (otElem) otElem.textContent = otCount;
