@@ -205,7 +205,7 @@
             white-space: nowrap;
         }
 
-        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn {
+        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn, .btn-confirm {
             padding: 6px 8px;
             font-size: 12px;
             font-weight: bold;
@@ -222,10 +222,20 @@
 
         .form-status-btn.open { background-color: #28a745; }
         .form-status-btn.closed { background-color: #6c757d; }
-        .form-status-btn:disabled {
-            cursor: not-allowed;
-            opacity: 0.85;
+        .form-status-btn:disabled { cursor: not-allowed; opacity: 0.85; }
+
+        /* 新增：確認按鈕專屬樣式，明顯且大 */
+        .btn-confirm {
+            display: none;
+            background-color: #28a745;
+            padding: 10px 18px;
+            font-size: 17px;
+            font-weight: bold;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
         }
+        .btn-confirm:hover { background-color: #218838; transform: scale(1.02); }
+        .btn-confirm:disabled { background-color: #6c757d; cursor: not-allowed; }
 
         @media screen and (max-width: 600px) {
             body { margin: 5px; }
@@ -236,6 +246,7 @@
             select { font-size: 13px; padding: 2px 3px; }
             .user-info { font-size: 12px; padding: 4px 6px; }
             .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn { padding: 5px 6px; font-size: 11px; }
+            .btn-confirm { font-size: 14px; padding: 8px 12px; }
             .stat-badge { font-size: 11px; padding: 3px 5px; }
         }
 
@@ -348,6 +359,12 @@
             background-color: #f0f0f0;
             cursor: not-allowed;
         }
+
+        /* 等待確認的未儲存標記 */
+        td.pending-edit select {
+            outline: 3px solid #ffc107;
+            background-color: #fff3cd !important;
+        }
     </style>
 </head>
 <body>
@@ -434,6 +451,8 @@
             <button id="changePwdBtn" class="change-pwd-btn">修改密碼</button>
             <button id="logoutBtn" class="logout-btn">登出</button>
             <button id="toggleStatsBtn" class="toggle-btn">隱藏統計</button>
+            <!-- 新增：大又好辨識的確認鍵 -->
+            <button id="confirmBtn" class="btn-confirm">✔ 確認儲存</button>
         </div>
     </div>
 
@@ -462,8 +481,11 @@
         passwords: {},
         otLimits: {},
         settings: {},
-        dailyMarks: {}   // 新增：每日備註
+        dailyMarks: {}   
     };
+
+    // 新增：等待確認儲存的暫存區
+    let pendingChanges = {};
 
     const syncStatus = document.getElementById('syncStatus');
     const loginOverlay = document.getElementById('loginOverlay');
@@ -485,6 +507,9 @@
     const userInfoDisplay = document.getElementById('userInfoDisplay');
     const logoutBtn = document.getElementById('logoutBtn');
     const formStatusBtn = document.getElementById('formStatusBtn');
+    
+    // 獲取確認鍵元素
+    const confirmBtn = document.getElementById('confirmBtn');
 
     const yearSelect = document.getElementById('yearSelect');
     const monthSelect = document.getElementById('monthSelect');
@@ -528,6 +553,7 @@
     }
 
     async function postCloudData(payload) {
+        // 被 confirmBtn 調用，依然相容既有後端 saveShift 動作
         showSync();
         try {
             await fetch(GAS_WEB_APP_URL, {
@@ -719,8 +745,14 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
                 const defaultShift = getDefaultShift(year, month, i);
-                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
-                let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+                // 讀取時需包含尚未確認的暫存資料，讓統計立即正確
+                let val;
+                if (pendingChanges[shiftKey] !== undefined) {
+                    val = pendingChanges[shiftKey];
+                } else {
+                    const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+                    val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+                }
 
                 if (val === 'G') grandTotalOt++;
                 if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
@@ -738,16 +770,16 @@
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
 
-            if (defaultShift === '日' || defaultShift === '夜') {
-                if (dailyElem) dailyElem.textContent = '';
-                continue;
-            }
-
             let dailyOtCount = 0;
             employees.forEach(empName => {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
-                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
-                let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+                let val;
+                if (pendingChanges[shiftKey] !== undefined) {
+                    val = pendingChanges[shiftKey];
+                } else {
+                    const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+                    val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+                }
 
                 if (val === 'G') {
                     dailyOtCount++;
@@ -759,6 +791,73 @@
             }
         }
     }
+
+    // 核心：確認按鈕動作 -> 真正進行儲存
+    confirmBtn.addEventListener('click', async function() {
+        const keys = Object.keys(pendingChanges);
+        if (keys.length === 0) {
+            alert("目前沒有尚未確認的異動需要儲存！");
+            return;
+        }
+
+        const confirmSave = confirm(`確定要儲存目前 ${keys.length} 筆異動資料嗎？`);
+        if (!confirmSave) return;
+
+        showSync();
+        confirmBtn.disabled = true;
+
+        try {
+            // 使用 Promise.all 同時發送多筆資料到後端，與原本的 saveShift 完全相容
+            const promises = [];
+            for (const [key, val] of Object.entries(pendingChanges)) {
+                promises.push(fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'saveShift', key: key, value: val })
+                }));
+            }
+            
+            // 等待所有請求完成
+            await Promise.all(promises);
+
+            // 將暫存區資料刷進系統主要記憶體
+            for (const [key, val] of Object.entries(pendingChanges)) {
+                cloudData.shifts[key] = val;
+            }
+            
+            // 清空暫存區
+            pendingChanges = {};
+            
+            // 清除畫面黃色邊框標記
+            document.querySelectorAll('td.pending-edit').forEach(el => {
+                el.classList.remove('pending-edit');
+            });
+            
+            // 隱藏確認鍵
+            confirmBtn.style.display = 'none';
+
+            // 刷新統計
+            const year = parseInt(yearSelect.value);
+            const month = parseInt(monthSelect.value);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            employees.forEach(empName => {
+                const otCellId = `ot_${year}_${month}_${empName}`;
+                const lvCellId = `lv_${year}_${month}_${empName}`;
+                calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+            });
+            calculateTotalClassStats(year, month, daysInMonth);
+            calculateDailyOtStats(year, month, daysInMonth);
+            
+            alert("✔ 資料儲存成功！");
+        } catch (err) {
+            console.error("儲存異常", err);
+            alert("❌ 資料儲存失敗，請稍後再試，或檢查網路連線！");
+        } finally {
+            hideSync();
+            confirmBtn.disabled = false;
+        }
+    });
 
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
@@ -830,7 +929,7 @@
             selectMark.addEventListener('change', function() {
                 const newMark = this.value;
                 cloudData.dailyMarks[markKey] = newMark;
-                saveDailyMarks();  // 異動即儲存
+                saveDailyMarks();  // 備註依然採即時儲存
             });
 
             thMark.appendChild(selectMark);
@@ -874,9 +973,13 @@
                 let td = document.createElement('td');
                 const defaultShift = getDefaultShift(year, month, i);
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
-
+                
+                // 修改讀值邏輯：優先顯示暫存區的值
                 const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
                 let finalValue = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+                if (pendingChanges[shiftKey] !== undefined) {
+                    finalValue = pendingChanges[shiftKey];
+                }
 
                 let select = document.createElement('select');
                 select.className = 'shift-select';
@@ -898,12 +1001,11 @@
                     select.appendChild(option);
                 });
 
-                let currentVal = finalValue;
-
+                // 處理下拉選單變更 -> 放入暫存區
                 select.addEventListener('change', function() {
                     if (!isFormOpen()) {
                         alert("目前填表已關閉，無法修改班表！");
-                        this.value = currentVal;
+                        this.value = finalValue;
                         return;
                     }
 
@@ -918,29 +1020,46 @@
                             if (otherEmp === empName) return;
                             const key = `s4_shift_${year}_${month}_${otherEmp}_${i}`;
                             const def = getDefaultShift(year, month, i);
-                            const val = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
+                            let val;
+                            if (pendingChanges[key] !== undefined) {
+                                val = pendingChanges[key];
+                            } else {
+                                const saved = (cloudData.shifts && cloudData.shifts[key] !== undefined) ? cloudData.shifts[key] : def;
+                                val = saved;
+                            }
                             if (val === 'G') otherOtCount++;
                         });
 
                         if (otherOtCount >= limit) {
                             alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
-                            this.value = currentVal;
+                            this.value = finalValue;
                             return;
                         }
                     }
 
-                    currentVal = newVal;
-                    if (!cloudData.shifts) cloudData.shifts = {};
-                    cloudData.shifts[shiftKey] = newVal;
-                    postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+                    // 紀錄到暫存區
+                    pendingChanges[shiftKey] = newVal;
+                    finalValue = newVal;
+                    
+                    // 給予視覺提示（黃色邊框）
+                    td.classList.add('pending-edit');
 
+                    // 更新顏色但不上傳雲端
                     updateCellColor(td, newVal);
+                    // 立即更新統計數據（讓用戶能立刻看到變更後的統計）
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
                     calculateTotalClassStats(year, month, daysInMonth);
                     calculateDailyOtStats(year, month, daysInMonth);
+
+                    // 顯示確認按鈕，提醒使用者按確認
+                    confirmBtn.style.display = 'inline-block';
                 });
 
                 td.appendChild(select);
+                // 如果有暫存檔未確認，保持黃色邊框
+                if (pendingChanges[shiftKey] !== undefined) {
+                    td.classList.add('pending-edit');
+                }
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
             }
@@ -967,6 +1086,13 @@
 
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
+        
+        // 如果頁面有殘留未確認的資料，確認按鈕應該要顯示
+        if (Object.keys(pendingChanges).length > 0) {
+            confirmBtn.style.display = 'inline-block';
+        } else {
+            confirmBtn.style.display = 'none';
+        }
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
@@ -975,8 +1101,14 @@
         for (let i = 1; i <= daysInMonth; i++) {
             const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
             const defaultShift = getDefaultShift(year, month, i);
-            const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
-            let val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+            
+            let val;
+            if (pendingChanges[shiftKey] !== undefined) {
+                val = pendingChanges[shiftKey];
+            } else {
+                const savedValue = (cloudData.shifts) ? cloudData.shifts[shiftKey] : undefined;
+                val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
+            }
 
             if (val === 'G') otCount++;
             if (['特', '病', '事', '生'].includes(val)) lvCount++;
@@ -989,7 +1121,9 @@
     }
 
     function updateCellColor(td, value) {
-        td.className = '';
+        td.className = 'pending-edit'; // 保留原本pending的class（如果有加的話），會在上一層加
+        // 不能用 replace 掉，需要保留原本的 class pending-edit，所以使用 classList 管理
+        td.classList.remove('shift-day', 'shift-night', 'shift-g', 'shift-unattended', 'shift-special', 'shift-personal', 'shift-sick', 'shift-physio', 'shift-typhoon');
         switch (value) {
             case '日': td.classList.add('shift-day'); break;
             case '夜': td.classList.add('shift-night'); break;
