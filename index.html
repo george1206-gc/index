@@ -423,6 +423,7 @@
 </div>
 
 <script>
+    // ⚠️ 請更換為您的 Google Apps Script 網址
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5qf_5Gf_4isMufDm80-3C0RlKWjlsTmqgkWyNOjMuvdKsWpWVOVwqFZcGAxIK_ZZK/exec";
 
     const employees = [
@@ -433,7 +434,6 @@
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
     
-    // 新增列的選項
     const specialOptions = ['', 'C', '颱', '豪', '歲', '旺'];
     
     let cloudData = {
@@ -441,7 +441,7 @@
         passwords: {},
         otLimits: {},
         settings: {},
-        specials: {}  // 新增：儲存特殊選項的資料
+        specials: {}
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -490,8 +490,11 @@
             const data = await resp.json();
             if (data) {
                 cloudData = data;
-                // 確保 specials 存在
                 if (!cloudData.specials) cloudData.specials = {};
+                if (!cloudData.shifts) cloudData.shifts = {};
+                if (!cloudData.passwords) cloudData.passwords = {};
+                if (!cloudData.otLimits) cloudData.otLimits = {};
+                if (!cloudData.settings) cloudData.settings = {};
             }
         } catch (err) {
             console.error("雲端讀取失敗", err);
@@ -503,11 +506,13 @@
     async function postCloudData(payload) {
         showSync();
         try {
+            // 使用傳統表單方式發送，避免 CORS 問題
+            const formData = new FormData();
+            formData.append('data', JSON.stringify(payload));
+            
             await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData
             });
         } catch (err) {
             console.error("雲端寫入失敗", err);
@@ -614,7 +619,7 @@
 
         if(!cloudData.passwords) cloudData.passwords = {};
         cloudData.passwords[currentUser] = newVal;
-        postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
+        await postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
 
         alert("密碼修改成功！");
         changePwdModal.style.display = 'none';
@@ -745,24 +750,20 @@
         const tbody = document.getElementById('tableBody');
         thead.innerHTML = ''; tbody.innerHTML = '';
 
-        // ===== 三列表頭：特殊選項列 → 日期列 → 星期列 =====
-        let trSpecial = document.createElement('tr');  // 特殊選項列
-        let trDate = document.createElement('tr');     // 日期列
-        let trDay = document.createElement('tr');      // 星期列
+        let trSpecial = document.createElement('tr');
+        let trDate = document.createElement('tr');
+        let trDay = document.createElement('tr');
 
-        // 特殊選項列表頭（空白）
         trSpecial.innerHTML = `
             <th class="col-stats stats-ot" rowspan="3"><div class="cell-content">當月<br>加班</div></th>
             <th class="col-stats stats-lv" rowspan="3"><div class="cell-content">當月<br>請假</div></th>
             <th class="col-name"><div class="cell-content"></div></th>
         `;
 
-        // 日期列表頭
         trDate.innerHTML = `
             <th class="col-name"><div class="cell-content">日期</div></th>
         `;
 
-        // 星期列表頭
         trDay.innerHTML = `
             <th class="col-name"><div class="cell-content">星期</div></th>
         `;
@@ -778,7 +779,7 @@
             let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             let isToday = (year === todayY && month === todayM && i === todayD);
 
-            // 特殊選項列的 th（包含選單）
+            // 特殊選項列的 th
             let thSpecial = document.createElement('th');
             let specialKey = `s4_special_${year}_${month}_${i}`;
             let savedSpecial = (cloudData.specials) ? cloudData.specials[specialKey] : undefined;
@@ -799,12 +800,12 @@
             specialOptions.forEach(opt => {
                 let option = document.createElement('option');
                 option.value = opt;
-                option.textContent = opt || '　';  // 空白選項顯示為全形空格
+                option.textContent = opt || '　';
                 if (opt === currentSpecial) option.selected = true;
                 selectSpecial.appendChild(option);
             });
 
-            selectSpecial.addEventListener('change', function() {
+            selectSpecial.addEventListener('change', async function() {
                 if (currentUser !== "陳喬志") {
                     this.value = currentSpecial;
                     return;
@@ -818,7 +819,8 @@
                 currentSpecial = this.value;
                 if (!cloudData.specials) cloudData.specials = {};
                 cloudData.specials[specialKey] = this.value;
-                postCloudData({ action: 'saveSpecial', key: specialKey, value: this.value });
+                // 使用 await 確保儲存完成
+                await postCloudData({ action: 'saveSpecial', key: specialKey, value: this.value });
             });
 
             thSpecial.appendChild(selectSpecial);
@@ -839,7 +841,6 @@
             trDay.appendChild(thDay);
         }
 
-        // 依照順序加入：特殊選項列 → 日期列 → 星期列
         thead.appendChild(trSpecial);
         thead.appendChild(trDate);
         thead.appendChild(trDay);
@@ -889,7 +890,7 @@
 
                 let currentVal = finalValue;
                 
-                select.addEventListener('change', function() {
+                select.addEventListener('change', async function() {
                     if (!isFormOpen()) {
                         alert("目前填表已關閉，無法修改班表！");
                         this.value = currentVal;
@@ -921,7 +922,7 @@
                     currentVal = newVal;
                     if (!cloudData.shifts) cloudData.shifts = {};
                     cloudData.shifts[shiftKey] = newVal;
-                    postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+                    await postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
 
                     updateCellColor(td, newVal);
                     calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
