@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (雙語版 / Cloud Sync)</title>
+    <title>捲繞出勤表 (雲端同步版)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;      /* 日班：淺綠 */
@@ -127,7 +127,7 @@
 
         .main-app { display: none; }
 
-        /* ==== 響應式頂部控制區 (RWD Mobile Optimized) ==== */
+        /* ==== 響應式頂部控制區 ==== */
         .header-controls {
             display: flex;
             align-items: center;
@@ -228,7 +228,7 @@
             white-space: nowrap;
         }
 
-        .change-pwd-btn, .logout-btn, .toggle-btn, .lang-btn {
+        .change-pwd-btn, .logout-btn, .toggle-btn, .form-lock-btn {
             padding: 6px 8px;
             font-size: 12px;
             font-weight: bold;
@@ -242,7 +242,14 @@
         .change-pwd-btn { background-color: #17a2b8; }
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
-        .lang-btn { background-color: #6f42c1; }
+        
+        /* 填表開關按鈕樣式 */
+        .form-lock-btn.open { background-color: #28a745; }
+        .form-lock-btn.closed { background-color: #6c757d; }
+        .form-lock-btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
 
         @media screen and (max-width: 600px) {
             body { margin: 5px; }
@@ -252,7 +259,7 @@
             .control-group span { font-size: 12px; padding: 0 2px; }
             select { font-size: 13px; padding: 2px 3px; }
             .user-info { font-size: 12px; padding: 4px 6px; }
-            .change-pwd-btn, .logout-btn, .toggle-btn, .lang-btn { padding: 5px 6px; font-size: 11px; }
+            .change-pwd-btn, .logout-btn, .toggle-btn, .form-lock-btn { padding: 5px 6px; font-size: 11px; }
             .stat-badge { font-size: 11px; padding: 3px 5px; }
         }
 
@@ -332,6 +339,11 @@
             color: inherit; font-weight: inherit;
         }
 
+        .shift-select:disabled {
+            cursor: not-allowed;
+            opacity: 0.9;
+        }
+
         .shift-day { background-color: var(--bg-day); }
         .shift-night { background-color: var(--bg-night); }
         .shift-g { background-color: var(--bg-g); color: black; font-weight: bold; }
@@ -345,20 +357,20 @@
 </head>
 <body>
 
-<div id="syncStatus" class="sync-status">☁️ Syncing...</div>
+<div id="syncStatus" class="sync-status">☁️ 雲端同步中...</div>
 
 <!-- ==== 登入視窗 ==== -->
 <div id="loginOverlay" class="login-overlay">
     <div class="login-card">
-        <h2 id="txtLoginTitle">系統登入 (雲端版)</h2>
+        <h2>系統登入 (雲端版)</h2>
         <div class="login-field">
-            <label for="loginNameSelect" id="txtLoginUserLabel">員工姓名 (帳號)</label>
+            <label for="loginNameSelect">員工姓名 (帳號)</label>
             <select id="loginNameSelect">
-                <option value="" id="txtSelectUserOpt">-- 請選擇姓名 --</option>
+                <option value="">-- 請選擇姓名 --</option>
             </select>
         </div>
         <div class="login-field">
-            <label for="loginPasswordInput" id="txtLoginPwdLabel">密碼</label>
+            <label for="loginPasswordInput">密碼</label>
             <input type="password" id="loginPasswordInput" placeholder="預設密碼：0000">
         </div>
         <button id="loginSubmitBtn" class="login-btn">登入</button>
@@ -369,17 +381,17 @@
 <!-- ==== 修改密碼視窗 ==== -->
 <div id="changePwdModal" class="login-overlay" style="display: none; z-index: 10000;">
     <div class="login-card">
-        <h2 id="txtChangePwdTitle">修改密碼</h2>
+        <h2>修改密碼</h2>
         <div class="login-field">
-            <label for="oldPwdInput" id="txtOldPwdLabel">舊密碼</label>
+            <label for="oldPwdInput">舊密碼</label>
             <input type="password" id="oldPwdInput" placeholder="請輸入原密碼">
         </div>
         <div class="login-field">
-            <label for="newPwdInput" id="txtNewPwdLabel">新密碼</label>
+            <label for="newPwdInput">新密碼</label>
             <input type="password" id="newPwdInput" placeholder="請輸入新密碼">
         </div>
         <div class="login-field">
-            <label for="confirmPwdInput" id="txtConfirmPwdLabel">確認新密碼</label>
+            <label for="confirmPwdInput">確認新密碼</label>
             <input type="password" id="confirmPwdInput" placeholder="請再次輸入新密碼">
         </div>
         <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -395,17 +407,17 @@
     <div class="header-controls">
         <div class="left-controls">
             <div class="control-group">
-                <span id="lblYear">年份</span>
+                <span>年份</span>
                 <select id="yearSelect"></select>
             </div>
             <div class="control-group">
-                <span id="lblMonth">月份</span>
+                <span>月份</span>
                 <select id="monthSelect"></select>
             </div>
             <div class="control-group">
-                <span id="lblOtLimit">加班限制</span>
+                <span>加班限制</span>
                 <select id="otLimitSelect">
-                    <option value="" id="optEmptyLimit">空白</option>
+                    <option value="">空白</option>
                     <option value="1">1</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
@@ -418,11 +430,11 @@
             <div class="total-stats-group">
                 <span id="totalOtDisplay" class="stat-badge stat-badge-ot">全班加班: 0天</span>
                 <span id="totalLvDisplay" class="stat-badge stat-badge-lv">全班請假: 0天</span>
-                <span id="totalUaDisplay" class="stat-badge stat-badge-ua">全班未到: 0天</span>
+                <span id="totalUaDisplay" class="stat-badge stat-badge-ua">加班未到: 0天</span>
             </div>
         </div>
         <div class="right-controls">
-            <button id="langToggleBtn" class="lang-btn">English</button>
+            <button id="toggleFormLockBtn" class="form-lock-btn open">填表狀態：開啟</button>
             <div id="userInfoDisplay" class="user-info">👤 未登入</div>
             <button id="changePwdBtn" class="change-pwd-btn">修改密碼</button>
             <button id="logoutBtn" class="logout-btn">登出</button>
@@ -442,129 +454,20 @@
     // ⚠️ 請記得貼上您的 Google Apps Script 網址 ⚠️
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdomLlDkFdhq8ZBZTZ_80fVYRSFTDT3vg51WxA37TtSBCN_RvbmzUfv1cZRo6KIscw/exec";
 
-    // 員工名單（已對調）
+    // 員工名單
     const employees = [
         "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特", 
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
 
-    // 多語系字典
-    let currentLang = 'zh'; // 'zh' 或 'en'
-
-    const i18n = {
-        zh: {
-            syncing: "☁️ 雲端同步中...",
-            loginTitle: "系統登入 (雲端版)",
-            loginUserLabel: "員工姓名 (帳號)",
-            selectUserOpt: "-- 請選擇姓名 --",
-            loginPwdLabel: "密碼",
-            pwdPlaceholder: "預設密碼：0000",
-            loginBtn: "登入",
-            loginErrorMsg: "請選擇姓名或密碼錯誤！",
-            changePwdTitle: "修改密碼",
-            oldPwdLabel: "舊密碼",
-            oldPwdPlaceholder: "請輸入原密碼",
-            newPwdLabel: "新密碼",
-            newPwdPlaceholder: "請輸入新密碼",
-            confirmPwdLabel: "確認新密碼",
-            confirmPwdPlaceholder: "請再次輸入新密碼",
-            cancelBtn: "取消",
-            saveBtn: "儲存修改",
-            pwdErrOld: "舊密碼輸入錯誤！",
-            pwdErrEmpty: "新密碼不可為空白！",
-            pwdErrDiff: "兩次輸入的新密碼不一致！",
-            pwdSuccess: "密碼修改成功！",
-            lblYear: "年份",
-            lblMonth: "月份",
-            lblOtLimit: "加班限制",
-            optEmptyLimit: "空白",
-            totalOt: "全班加班",
-            totalLv: "全班請假",
-            totalUa: "全班未到",
-            notLoggedIn: "👤 未登入",
-            btnChangePwd: "修改密碼",
-            btnLogout: "登出",
-            btnHideStats: "隱藏統計",
-            btnShowStats: "顯示統計",
-            thOt: "當月<br>加班",
-            thLv: "當月<br>請假",
-            thDate: "日期",
-            thDay: "星期",
-            thDailyOt: "加班人數",
-            otLimitAlert: (m, d, limit) => `${m}月${d}日 (非上班日) 加班人數已達上限 (${limit} 人)！`,
-            weekDays: ["日", "一", "二", "三", "四", "五", "六"],
-            shifts: {
-                '日': '日',
-                '夜': '夜',
-                'G': 'G',
-                '未': '未',
-                '特': '特',
-                '事': '事',
-                '病': '病',
-                '生': '生',
-                '颱': '颱'
-            }
-        },
-        en: {
-            syncing: "☁️ Syncing...",
-            loginTitle: "Login (Cloud)",
-            loginUserLabel: "Employee Name",
-            selectUserOpt: "-- Select Name --",
-            loginPwdLabel: "Password",
-            pwdPlaceholder: "Default: 0000",
-            loginBtn: "Login",
-            loginErrorMsg: "Please select name or invalid password!",
-            changePwdTitle: "Change Password",
-            oldPwdLabel: "Old Password",
-            oldPwdPlaceholder: "Enter old password",
-            newPwdLabel: "New Password",
-            newPwdPlaceholder: "Enter new password",
-            confirmPwdLabel: "Confirm Password",
-            confirmPwdPlaceholder: "Confirm new password",
-            cancelBtn: "Cancel",
-            saveBtn: "Save",
-            pwdErrOld: "Incorrect old password!",
-            pwdErrEmpty: "New password cannot be empty!",
-            pwdErrDiff: "Passwords do not match!",
-            pwdSuccess: "Password changed successfully!",
-            lblYear: "Year",
-            lblMonth: "Month",
-            lblOtLimit: "OT Limit",
-            optEmptyLimit: "None",
-            totalOt: "Class OT",
-            totalLv: "Class Leave",
-            totalUa: "Class Absent",
-            notLoggedIn: "👤 Not Logged In",
-            btnChangePwd: "Change Pwd",
-            btnLogout: "Logout",
-            btnHideStats: "Hide Stats",
-            btnShowStats: "Show Stats",
-            thOt: "Monthly<br>OT",
-            thLv: "Monthly<br>Leave",
-            thDate: "Date",
-            thDay: "Day",
-            thDailyOt: "OT Count",
-            otLimitAlert: (m, d, limit) => `OT limit reached (${limit} max) for ${m}/${d}!`,
-            weekDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-            shifts: {
-                '日': 'Day',
-                '夜': 'Night',
-                'G': 'OT',
-                '未': 'Absent',
-                '特': 'Annual',
-                '事': 'Personal',
-                '病': 'Sick',
-                '生': 'Physio',
-                '颱': 'Typhoon'
-            }
-        }
-    };
+    const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
     
     let cloudData = {
         shifts: {},
         passwords: {},
-        otLimits: {}
+        otLimits: {},
+        formOpen: true // 預設開啟填表
     };
 
     const syncStatus = document.getElementById('syncStatus');
@@ -591,7 +494,7 @@
     const monthSelect = document.getElementById('monthSelect');
     const otLimitSelect = document.getElementById('otLimitSelect');
     const toggleStatsBtn = document.getElementById('toggleStatsBtn');
-    const langToggleBtn = document.getElementById('langToggleBtn');
+    const toggleFormLockBtn = document.getElementById('toggleFormLockBtn');
 
     const totalOtDisplay = document.getElementById('totalOtDisplay');
     const totalLvDisplay = document.getElementById('totalLvDisplay');
@@ -600,63 +503,10 @@
     function showSync() { syncStatus.style.display = 'block'; }
     function hideSync() { syncStatus.style.display = 'none'; }
 
-    // 填入員工選單
     employees.forEach(emp => {
         let opt = document.createElement('option');
         opt.value = emp; opt.textContent = emp;
         loginNameSelect.appendChild(opt);
-    });
-
-    // 語言切換更新介面
-    function applyLanguage(lang) {
-        currentLang = lang;
-        const t = i18n[lang];
-
-        langToggleBtn.textContent = (lang === 'zh') ? 'English' : '中文';
-        syncStatus.textContent = t.syncing;
-        
-        document.getElementById('txtLoginTitle').textContent = t.loginTitle;
-        document.getElementById('txtLoginUserLabel').textContent = t.loginUserLabel;
-        document.getElementById('txtSelectUserOpt').textContent = t.selectUserOpt;
-        document.getElementById('txtLoginPwdLabel').textContent = t.loginPwdLabel;
-        loginPasswordInput.placeholder = t.pwdPlaceholder;
-        loginSubmitBtn.textContent = t.loginBtn;
-        loginErrorMsg.textContent = t.loginErrorMsg;
-
-        document.getElementById('txtChangePwdTitle').textContent = t.changePwdTitle;
-        document.getElementById('txtOldPwdLabel').textContent = t.oldPwdLabel;
-        oldPwdInput.placeholder = t.oldPwdPlaceholder;
-        document.getElementById('txtNewPwdLabel').textContent = t.newPwdLabel;
-        newPwdInput.placeholder = t.newPwdPlaceholder;
-        document.getElementById('txtConfirmPwdLabel').textContent = t.confirmPwdLabel;
-        confirmPwdInput.placeholder = t.confirmPwdPlaceholder;
-        cancelPwdBtn.textContent = t.cancelBtn;
-        savePwdBtn.textContent = t.saveBtn;
-
-        document.getElementById('lblYear').textContent = t.lblYear;
-        document.getElementById('lblMonth').textContent = t.lblMonth;
-        document.getElementById('lblOtLimit').textContent = t.lblOtLimit;
-        document.getElementById('optEmptyLimit').textContent = t.optEmptyLimit;
-        
-        changePwdBtn.textContent = t.btnChangePwd;
-        logoutBtn.textContent = t.btnLogout;
-        
-        const isHidden = document.body.classList.contains('hide-stats');
-        toggleStatsBtn.textContent = isHidden ? t.btnShowStats : t.btnHideStats;
-
-        const currentUser = sessionStorage.getItem('s4_current_user');
-        if (currentUser) {
-            userInfoDisplay.textContent = `👤 ${currentUser}`;
-        } else {
-            userInfoDisplay.textContent = t.notLoggedIn;
-        }
-
-        renderTable();
-    }
-
-    langToggleBtn.addEventListener('click', function() {
-        const nextLang = (currentLang === 'zh') ? 'en' : 'zh';
-        applyLanguage(nextLang);
     });
 
     async function fetchCloudData() {
@@ -666,7 +516,7 @@
             const data = await resp.json();
             if (data) cloudData = data;
         } catch (err) {
-            console.error("Cloud read failed", err);
+            console.error("雲端讀取失敗", err);
         } finally {
             hideSync();
         }
@@ -682,7 +532,7 @@
                 body: JSON.stringify(payload)
             });
         } catch (err) {
-            console.error("Cloud write failed", err);
+            console.error("雲端寫入失敗", err);
         } finally {
             hideSync();
         }
@@ -692,6 +542,38 @@
         return (cloudData.passwords && cloudData.passwords[empName]) ? cloudData.passwords[empName] : "0000";
     }
 
+    function isFormOpen() {
+        return cloudData.formOpen !== false;
+    }
+
+    function updateFormLockButtonUI() {
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        const isOpen = isFormOpen();
+        
+        if (isOpen) {
+            toggleFormLockBtn.textContent = "填表狀態：開啟";
+            toggleFormLockBtn.className = "form-lock-btn open";
+        } else {
+            toggleFormLockBtn.textContent = "填表狀態：關閉";
+            toggleFormLockBtn.className = "form-lock-btn closed";
+        }
+
+        // 僅陳喬志可操作開關按鈕
+        toggleFormLockBtn.disabled = (currentUser !== "陳喬志");
+    }
+
+    toggleFormLockBtn.addEventListener('click', function() {
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        if (currentUser !== "陳喬志") return;
+
+        const nextStatus = !isFormOpen();
+        cloudData.formOpen = nextStatus;
+
+        postCloudData({ action: 'saveFormLockStatus', key: 'FormOpenStatus', value: nextStatus });
+        updateFormLockButtonUI();
+        renderTable();
+    });
+
     async function checkLoginStatus() {
         await fetchCloudData();
         const currentUser = sessionStorage.getItem('s4_current_user');
@@ -699,6 +581,7 @@
             loginOverlay.style.display = 'none';
             mainApp.style.display = 'block';
             userInfoDisplay.textContent = `👤 ${currentUser}`;
+            updateFormLockButtonUI();
             renderTable();
         } else {
             loginOverlay.style.display = 'flex';
@@ -732,22 +615,21 @@
     savePwdBtn.addEventListener('click', async function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const correctPwd = getUserPassword(currentUser);
-        const t = i18n[currentLang];
         
         const oldVal = oldPwdInput.value;
         const newVal = newPwdInput.value;
         const confirmVal = confirmPwdInput.value;
 
         if (oldVal !== correctPwd) {
-            pwdErrorMsg.textContent = t.pwdErrOld;
+            pwdErrorMsg.textContent = "舊密碼輸入錯誤！";
             pwdErrorMsg.style.display = "block"; return;
         }
         if (!newVal) {
-            pwdErrorMsg.textContent = t.pwdErrEmpty;
+            pwdErrorMsg.textContent = "新密碼不可為空白！";
             pwdErrorMsg.style.display = "block"; return;
         }
         if (newVal !== confirmVal) {
-            pwdErrorMsg.textContent = t.pwdErrDiff;
+            pwdErrorMsg.textContent = "兩次輸入的新密碼不一致！";
             pwdErrorMsg.style.display = "block"; return;
         }
 
@@ -755,7 +637,7 @@
         cloudData.passwords[currentUser] = newVal;
         postCloudData({ action: 'savePassword', key: currentUser, value: newVal });
 
-        alert(t.pwdSuccess);
+        alert("密碼修改成功！");
         changePwdModal.style.display = 'none';
     });
 
@@ -784,8 +666,7 @@
 
     toggleStatsBtn.addEventListener('click', function() {
         document.body.classList.toggle('hide-stats');
-        const t = i18n[currentLang];
-        this.textContent = document.body.classList.contains('hide-stats') ? t.btnShowStats : t.btnHideStats;
+        this.textContent = document.body.classList.contains('hide-stats') ? '顯示統計' : '隱藏統計';
     });
 
     otLimitSelect.addEventListener('change', function() {
@@ -819,7 +700,6 @@
         let grandTotalOt = 0;
         let grandTotalLv = 0;
         let grandTotalUa = 0;
-        const t = i18n[currentLang];
 
         employees.forEach(empName => {
             for (let i = 1; i <= daysInMonth; i++) {
@@ -834,10 +714,9 @@
             }
         });
 
-        const unit = (currentLang === 'en') ? 'd' : '天';
-        if (totalOtDisplay) totalOtDisplay.textContent = `${t.totalOt}: ${grandTotalOt}${unit}`;
-        if (totalLvDisplay) totalLvDisplay.textContent = `${t.totalLv}: ${grandTotalLv}${unit}`;
-        if (totalUaDisplay) totalUaDisplay.textContent = `${t.totalUa}: ${grandTotalUa}${unit}`;
+        if (totalOtDisplay) totalOtDisplay.textContent = `全班加班: ${grandTotalOt}天`;
+        if (totalLvDisplay) totalLvDisplay.textContent = `全班請假: ${grandTotalLv}天`;
+        if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}天`;
     }
 
     function calculateDailyOtStats(year, month, daysInMonth) {
@@ -871,7 +750,8 @@
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
 
-        const t = i18n[currentLang];
+        updateFormLockButtonUI();
+
         otLimitSelect.disabled = (currentUser !== "陳喬志");
 
         const year = parseInt(yearSelect.value);
@@ -889,11 +769,11 @@
         let trDay = document.createElement('tr');
 
         trDate.innerHTML = `
-            <th class="col-stats stats-ot" rowspan="2"><div class="cell-content">${t.thOt}</div></th>
-            <th class="col-stats stats-lv" rowspan="2"><div class="cell-content">${t.thLv}</div></th>
-            <th class="col-name"><div class="cell-content">${t.thDate}</div></th>
+            <th class="col-stats stats-ot" rowspan="2"><div class="cell-content">當月<br>加班</div></th>
+            <th class="col-stats stats-lv" rowspan="2"><div class="cell-content">當月<br>請假</div></th>
+            <th class="col-name"><div class="cell-content">日期</div></th>
         `;
-        trDay.innerHTML = `<th class="col-name"><div class="cell-content">${t.thDay}</div></th>`;
+        trDay.innerHTML = `<th class="col-name"><div class="cell-content">星期</div></th>`;
 
         const today = new Date();
         const todayY = today.getFullYear();
@@ -912,7 +792,7 @@
             trDate.appendChild(thDate);
 
             let thDay = document.createElement('th');
-            thDay.innerHTML = `<div class="cell-content">${t.weekDays[dayOfWeek]}</div>`;
+            thDay.innerHTML = `<div class="cell-content">${weekDaysTW[dayOfWeek]}</div>`;
             if (isWeekend) thDay.classList.add('weekend-header');
             if (isToday) thDay.classList.add('today-header');
             trDay.appendChild(thDay);
@@ -924,6 +804,8 @@
         const visibleEmployees = (currentUser === "陳喬志") 
             ? employees 
             : employees.filter(emp => emp === currentUser);
+
+        const formIsOpen = isFormOpen();
 
         visibleEmployees.forEach(empName => {
             let tr = document.createElement('tr');
@@ -947,6 +829,11 @@
                 let select = document.createElement('select');
                 select.className = 'shift-select';
                 
+                // 判斷是否禁用的核心邏輯：如果填表關閉，且非管理者陳喬志，則將下拉選單鎖定
+                if (!formIsOpen && currentUser !== "陳喬志") {
+                    select.disabled = true;
+                }
+
                 let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
                 if (finalValue !== '' && !baseOptions.includes(finalValue)) {
                     baseOptions.push(finalValue);
@@ -955,7 +842,7 @@
                 baseOptions.forEach(opt => {
                     let option = document.createElement('option');
                     option.value = opt;
-                    option.textContent = t.shifts[opt] !== undefined ? t.shifts[opt] : opt;
+                    option.textContent = opt;
                     if (opt === finalValue) option.selected = true;
                     select.appendChild(option);
                 });
@@ -979,7 +866,7 @@
                         });
 
                         if (otherOtCount >= limit) {
-                            alert(t.otLimitAlert(month, i, limit));
+                            alert(`${month}月${i}日 (非上班日) 加班人數已達上限 (${limit} 人)！`);
                             this.value = currentVal; 
                             return;
                         }
@@ -1005,13 +892,13 @@
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
-        // 「當天加班人數」列
+        // 當天加班人數列
         let trDailyOt = document.createElement('tr');
         trDailyOt.className = 'daily-ot-row';
         trDailyOt.innerHTML = `
             <td class="stats-ot"><div class="cell-content">-</div></td>
             <td class="stats-lv"><div class="cell-content">-</div></td>
-            <td class="col-name"><div class="cell-content">${t.thDailyOt}</div></td>
+            <td class="col-name"><div class="cell-content">加班人數</div></td>
         `;
 
         for (let i = 1; i <= daysInMonth; i++) {
@@ -1060,8 +947,6 @@
     yearSelect.addEventListener('change', async () => { await fetchCloudData(); renderTable(); });
     monthSelect.addEventListener('change', async () => { await fetchCloudData(); renderTable(); });
 
-    // 初始化語言與登入狀態
-    applyLanguage('zh');
     checkLoginStatus();
 </script>
 
