@@ -506,14 +506,14 @@
     async function postCloudData(payload) {
         showSync();
         try {
-            // 使用傳統表單方式發送，避免 CORS 問題
-            const formData = new FormData();
-            formData.append('data', JSON.stringify(payload));
-            
-            await fetch(GAS_WEB_APP_URL, {
+            const response = await fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
+            const result = await response.json();
+            console.log("雲端回應:", result);
+            return result;
         } catch (err) {
             console.error("雲端寫入失敗", err);
         } finally {
@@ -544,7 +544,7 @@
         formStatusBtn.disabled = (currentUser !== "陳喬志");
     }
 
-    formStatusBtn.addEventListener('click', function() {
+    formStatusBtn.addEventListener('click', async function() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (currentUser !== "陳喬志") return;
 
@@ -552,7 +552,7 @@
         if (!cloudData.settings) cloudData.settings = {};
         cloudData.settings['form_status'] = nextState;
 
-        postCloudData({ action: 'saveSetting', key: 'form_status', value: nextState });
+        await postCloudData({ action: 'saveSetting', key: 'form_status', value: nextState });
 
         updateFormStatusUI();
         renderTable();
@@ -653,13 +653,13 @@
         this.textContent = document.body.classList.contains('hide-stats') ? '顯示統計' : '隱藏統計';
     });
 
-    otLimitSelect.addEventListener('change', function() {
+    otLimitSelect.addEventListener('change', async function() {
         const year = yearSelect.value;
         const month = monthSelect.value;
         const limitKey = `${year}_${month}`;
         if (!cloudData.otLimits) cloudData.otLimits = {};
         cloudData.otLimits[limitKey] = this.value;
-        postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
+        await postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
     function getDefaultShift(year, month, day) {
@@ -819,7 +819,6 @@
                 currentSpecial = this.value;
                 if (!cloudData.specials) cloudData.specials = {};
                 cloudData.specials[specialKey] = this.value;
-                // 使用 await 確保儲存完成
                 await postCloudData({ action: 'saveSpecial', key: specialKey, value: this.value });
             });
 
