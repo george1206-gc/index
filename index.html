@@ -224,7 +224,7 @@
         .form-status-btn.closed { background-color: #6c757d; }
         .form-status-btn:disabled { cursor: not-allowed; opacity: 0.85; }
 
-        /* =================== 確認按鈕 =================== */
+        /* =================== 確認按鈕 (強化灰色判斷) =================== */
         .btn-confirm {
             position: fixed;
             bottom: 25px;
@@ -252,11 +252,13 @@
         .btn-confirm:active:not(:disabled) {
             transform: scale(0.95);
         }
+        /* 強制設定 disabled 為灰色 */
         .btn-confirm:disabled {
-            background-color: #a0a0a0;
-            box-shadow: none;
-            cursor: default;
-            transform: scale(1);
+            background-color: #a0a0a0 !important;
+            box-shadow: none !important;
+            cursor: default !important;
+            transform: scale(1) !important;
+            opacity: 1 !important;
         }
         @media screen and (max-width: 600px) {
             .btn-confirm {
@@ -266,6 +268,7 @@
                 font-size: 17px;
             }
         }
+        /* ============================================================= */
 
         /* =================== 中英雙語自定義彈窗 =================== */
         .custom-modal-overlay {
@@ -720,7 +723,7 @@
         }
     }
 
-    // ========= 登入按鈕修正：驗證成功馬上顯示同步中 =========
+    // 登入按鈕修正：驗證成功馬上顯示同步中
     loginSubmitBtn.addEventListener('click', function() {
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
@@ -729,15 +732,12 @@
             sessionStorage.setItem('s4_current_user', selectedUser);
             loginErrorMsg.style.display = 'none';
             loginPasswordInput.value = '';
-            
-            // 立刻強制觸發"雲端同步中"！
             showSync(); 
             checkLoginStatus();
         } else {
             loginErrorMsg.style.display = 'block';
         }
     });
-    // ========================================================
 
     changePwdBtn.addEventListener('click', function() {
         oldPwdInput.value = ''; newPwdInput.value = ''; confirmPwdInput.value = '';
@@ -873,16 +873,12 @@
         }
     }
 
+    // 更新右下角確認按鈕狀態 (簡化直接操作 disabled)
     function updateConfirmBtnState() {
         const count = Object.keys(pendingChanges).length;
         confirmBtn.innerHTML = `✔ Confirm / 確認儲存 (${count})`;
-        if (count > 0) {
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove('btn-disabled');
-        } else {
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('btn-disabled');
-        }
+        // 利用原生 disabled 屬性，CSS 已用 !important 強制定義 gray
+        confirmBtn.disabled = (count === 0);
     }
 
     function showConfirmModal(message) {
