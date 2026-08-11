@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>捲繞出勤表 (雲端同步版)</title>
+    <title>捲繞出勤表(S4)</title>
     <style>
         :root {
             --bg-day: #c6e0b4;
@@ -459,7 +459,7 @@
 <!-- ==== 登入視窗 ==== -->
 <div id="loginOverlay" class="login-overlay">
     <div class="login-card">
-        <h2>系統登入 (雲端版)</h2>
+        <h2>系統換入(捲繞S4)</h2>
         <div class="login-field">
             <label for="loginNameSelect">員工姓名 (帳號)</label>
             <select id="loginNameSelect">
@@ -570,7 +570,7 @@
 </div>
 
 <script>
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5qf_5Gf_4isMufDm80-3C0RlKWjlsTmqgkWyNOjMuvdKsWpWVOVwqFZcGAxIK_ZZK/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwMTbyCc7XCDiYdVEzADDaIAjlFuDWKftphjl1jbHDNqs3Z6REshQnOS-EPgOanUWyc/exec";
 
     const employees = [
         "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
@@ -723,7 +723,7 @@
         }
     }
 
-    // 登入按鈕修正：驗證成功馬上顯示同步中
+    // 登入按鈕：驗證成功馬上顯示同步中
     loginSubmitBtn.addEventListener('click', function() {
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
@@ -888,7 +888,7 @@
             confirmBtn.style.display = 'block';
             confirmBtn.disabled = false;
         } else {
-            confirmBtn.style.display = 'none'; // 沒資料時隱藏 (符合用戶原本習慣)
+            confirmBtn.style.display = 'none'; // 沒資料時隱藏
         }
     }
 
