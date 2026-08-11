@@ -230,7 +230,7 @@
             bottom: 25px;
             right: 25px;
             z-index: 9999;
-            display: block;
+            display: none; /* 預設隱藏，由JS控制 */
             
             padding: 15px 25px;
             font-size: 20px;
@@ -873,12 +873,23 @@
         }
     }
 
-    // 更新右下角確認按鈕狀態 (簡化直接操作 disabled)
+    // 更新右下角確認按鈕狀態
     function updateConfirmBtnState() {
+        const currentUser = sessionStorage.getItem('s4_current_user');
+        // 陳喬志不顯示此按鈕
+        if (currentUser === "陳喬志") {
+            confirmBtn.style.display = 'none';
+            return;
+        }
+
         const count = Object.keys(pendingChanges).length;
         confirmBtn.innerHTML = `✔ Confirm / 確認儲存 (${count})`;
-        // 利用原生 disabled 屬性，CSS 已用 !important 強制定義 gray
-        confirmBtn.disabled = (count === 0);
+        if (count > 0) {
+            confirmBtn.style.display = 'block';
+            confirmBtn.disabled = false;
+        } else {
+            confirmBtn.style.display = 'none'; // 沒資料時隱藏 (符合用戶原本習慣)
+        }
     }
 
     function showConfirmModal(message) {
@@ -973,10 +984,14 @@
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
 
+        // 確認當前用戶是否為管理者 (陳喬志)
+        const isAdmin = (currentUser === "陳喬志");
+
         updateFormStatusUI();
         const formOpen = isFormOpen();
 
-        otLimitSelect.disabled = (currentUser !== "陳喬志") || !formOpen;
+        // 只有陳喬志能調配加班限制
+        otLimitSelect.disabled = !isAdmin || !formOpen;
 
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
@@ -1023,7 +1038,8 @@
             });
             const currentMark = cloudData.dailyMarks[markKey] || '';
             selectMark.value = currentMark;
-            if (currentUser !== "陳喬志") {
+            // 只有陳喬志能修改備註
+            if (!isAdmin) {
                 selectMark.disabled = true;
             }
             selectMark.addEventListener('change', function() {
@@ -1050,7 +1066,7 @@
         thead.appendChild(trDate);
         thead.appendChild(trDay);
 
-        const visibleEmployees = (currentUser === "陳喬志")
+        const visibleEmployees = isAdmin
             ? employees
             : employees.filter(emp => emp === currentUser);
 
@@ -1122,14 +1138,30 @@
                         }
                     }
 
-                    pendingChanges[shiftKey] = newVal;
-                    finalValue = newVal;
-                    td.classList.add('pending-edit');
-                    updateCellColor(td, newVal);
-                    calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
-                    calculateTotalClassStats(year, month, daysInMonth);
-                    calculateDailyOtStats(year, month, daysInMonth);
-                    updateConfirmBtnState();
+                    // ============ 區分權限邏輯 ============
+                    if (isAdmin) {
+                        // 陳喬志：直接即時儲存，不經過暫存區，也不顯示按鈕
+                        if (!cloudData.shifts) cloudData.shifts = {};
+                        cloudData.shifts[shiftKey] = newVal;
+                        postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
+
+                        finalValue = newVal;
+                        updateCellColor(td, newVal);
+                        calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+                        calculateTotalClassStats(year, month, daysInMonth);
+                        calculateDailyOtStats(year, month, daysInMonth);
+                    } else {
+                        // 一般員工：進入待儲存模式
+                        pendingChanges[shiftKey] = newVal;
+                        finalValue = newVal;
+                        td.classList.add('pending-edit');
+                        updateCellColor(td, newVal);
+                        calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
+                        calculateTotalClassStats(year, month, daysInMonth);
+                        calculateDailyOtStats(year, month, daysInMonth);
+                        updateConfirmBtnState();
+                    }
+                    // ======================================
                 });
 
                 td.appendChild(select);
@@ -1159,7 +1191,20 @@
 
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
-        updateConfirmBtnState();
+        
+        // ============ 渲染完畢最後決定按鈕顯示 ============
+        if (isAdmin) {
+            confirmBtn.style.display = 'none'; // 陳喬志絕對看不到
+        } else {
+            if (Object.keys(pendingChanges).length > 0) {
+                confirmBtn.style.display = 'block';
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = `✔ Confirm / 確認儲存 (${Object.keys(pendingChanges).length})`;
+            } else {
+                confirmBtn.style.display = 'none';
+            }
+        }
+        // =================================================
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
