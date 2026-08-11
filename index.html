@@ -224,7 +224,7 @@
         .form-status-btn.closed { background-color: #6c757d; }
         .form-status-btn:disabled { cursor: not-allowed; opacity: 0.85; }
 
-        /* =================== 確認按鈕 (強化灰色判斷) =================== */
+        /* =================== 確認按鈕 =================== */
         .btn-confirm {
             position: fixed;
             bottom: 25px;
@@ -252,7 +252,6 @@
         .btn-confirm:active:not(:disabled) {
             transform: scale(0.95);
         }
-        /* 強制設定 disabled 為灰色 */
         .btn-confirm:disabled {
             background-color: #a0a0a0 !important;
             box-shadow: none !important;
@@ -268,7 +267,6 @@
                 font-size: 17px;
             }
         }
-        /* ============================================================= */
 
         /* =================== 中英雙語自定義彈窗 =================== */
         .custom-modal-overlay {
@@ -849,10 +847,18 @@
         if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}天`;
     }
 
+    // ======= 修正：「加班人數」在上班日顯示空白 ======= 
     function calculateDailyOtStats(year, month, daysInMonth) {
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
+            
+            // 如果當天是預設上班日 (日/夜)，就直接留空，不顯示 0
+            if (defaultShift === '日' || defaultShift === '夜') {
+                if (dailyElem) dailyElem.textContent = '';
+                continue;
+            }
+
             let dailyOtCount = 0;
             employees.forEach(empName => {
                 const shiftKey = `s4_shift_${year}_${month}_${empName}_${i}`;
@@ -867,6 +873,7 @@
                     dailyOtCount++;
                 }
             });
+            
             if (dailyElem) {
                 dailyElem.textContent = dailyOtCount;
             }
@@ -888,7 +895,7 @@
             confirmBtn.style.display = 'block';
             confirmBtn.disabled = false;
         } else {
-            confirmBtn.style.display = 'none'; // 沒資料時隱藏
+            confirmBtn.style.display = 'none';
         }
     }
 
@@ -1095,10 +1102,29 @@
                 if (!formOpen) {
                     select.disabled = true;
                 }
-                let baseOptions = (defaultShift === '') ? ['', 'G', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
-                if (finalValue !== '' && !baseOptions.includes(finalValue)) {
-                    baseOptions.push(finalValue);
+
+                // ============ 權限管理：移除一般員工的 "未" 選項 ============
+                let baseOptions;
+                if (defaultShift === '') {
+                    // 休假日：只有陳喬志可以選 "未"
+                    baseOptions = isAdmin ? ['', 'G', '未'] : ['', 'G'];
+                } else {
+                    // 上班日：一般員工不能選 "未"，陳喬志才能選
+                    baseOptions = isAdmin ? [defaultShift, '特', '病', '事', '生', '颱', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
                 }
+
+                // 若最終值不在選項中（例如一般員工原本儲存了 "未" 在雲端）
+                if (finalValue !== '' && !baseOptions.includes(finalValue)) {
+                    if (isAdmin) {
+                        // 陳喬志可以看得到原本在雲端留存的特殊值 (例如未)
+                        baseOptions.push(finalValue);
+                    } else {
+                        // 一般員工看不到 "未" 等無權限選項，強迫重置為預設值 (避免下拉選單顯示異常)
+                        finalValue = defaultShift || '';
+                    }
+                }
+                // ========================================================
+
                 baseOptions.forEach(opt => {
                     let option = document.createElement('option');
                     option.value = opt;
