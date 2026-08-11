@@ -37,7 +37,7 @@
             border-radius: 20px;
             font-size: 12px;
             display: none;
-            z-index: 9998;
+            z-index: 10001;
         }
 
         .login-overlay {
@@ -267,7 +267,7 @@
             }
         }
 
-        /* =================== 中英雙語自定義彈窗 (確認/成功) =================== */
+        /* =================== 中英雙語自定義彈窗 =================== */
         .custom-modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -332,7 +332,6 @@
         .modal-btn-cancel:hover {
             background-color: #dde0e3;
         }
-        /* ============================================================== */
 
         .table-container {
             overflow: auto;
@@ -721,6 +720,7 @@
         }
     }
 
+    // ========= 登入按鈕修正：驗證成功馬上顯示同步中 =========
     loginSubmitBtn.addEventListener('click', function() {
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
@@ -729,11 +729,15 @@
             sessionStorage.setItem('s4_current_user', selectedUser);
             loginErrorMsg.style.display = 'none';
             loginPasswordInput.value = '';
+            
+            // 立刻強制觸發"雲端同步中"！
+            showSync(); 
             checkLoginStatus();
         } else {
             loginErrorMsg.style.display = 'block';
         }
     });
+    // ========================================================
 
     changePwdBtn.addEventListener('click', function() {
         oldPwdInput.value = ''; newPwdInput.value = ''; confirmPwdInput.value = '';
@@ -881,7 +885,6 @@
         }
     }
 
-    // ========= 核心：雙語確認彈窗 (覆蓋原生 confirm) =========
     function showConfirmModal(message) {
         return new Promise((resolve) => {
             confirmModalText.textContent = message;
@@ -895,7 +898,6 @@
                 confirmModal.style.display = 'none';
                 resolve(false);
             };
-            // 點擊背景也可關閉並視為取消
             confirmModal.onclick = function(e) {
                 if (e.target === this) {
                     this.style.display = 'none';
@@ -904,7 +906,6 @@
             };
         });
     }
-    // ==========================================================
 
     modalConfirmBtn.addEventListener('click', function() {
         successModal.style.display = 'none';
@@ -915,12 +916,10 @@
         }
     });
 
-    // 右下角確認儲存按鈕的點擊事件
     confirmBtn.addEventListener('click', async function() {
         const keys = Object.keys(pendingChanges);
         if (keys.length === 0) return;
 
-        // 改為呼叫自定義彈窗，不會顯示紅線網址，且為中英文
         const confirmSave = await showConfirmModal(
             `Are you sure you want to save the ${keys.length} pending change(s)? / 確定要儲存目前 ${keys.length} 筆異動資料嗎？`
         );
@@ -963,7 +962,6 @@
             calculateTotalClassStats(year, month, daysInMonth);
             calculateDailyOtStats(year, month, daysInMonth);
             
-            // 中英文成功視窗
             successModal.style.display = 'flex';
 
         } catch (err) {
