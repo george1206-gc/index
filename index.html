@@ -17,6 +17,12 @@
             --bg-physio: #ffe6cc;
             --bg-typhoon: #dae8fc;
             --bg-unattended: #d0d0d0;
+            
+            /* 新增班別顏色 */
+            --bg-return: #ff9900; /* 返 - 橘色 */
+            --bg-trip: #00b0f0;    /* 差 - 藍色 */
+            --bg-absent: #555555;  /* 曠 - 深灰色 */
+            
             --border-color: #a0a0a0;
         }
 
@@ -423,6 +429,11 @@
         .shift-sick { background-color: var(--bg-sick); color: var(--text-sick); font-weight: bold; }
         .shift-physio { background-color: var(--bg-physio); color: black; font-weight: bold; }
         .shift-typhoon { background-color: var(--bg-typhoon); color: black; font-weight: bold; }
+        
+        /* 新增班別樣式 */
+        .shift-return { background-color: var(--bg-return); color: white; font-weight: bold; }
+        .shift-trip { background-color: var(--bg-trip); color: white; font-weight: bold; }
+        .shift-absent { background-color: var(--bg-absent); color: white; font-weight: bold; }
 
         .daily-mark-select {
             width: 100%;
@@ -446,6 +457,11 @@
         td.pending-edit select {
             outline: 3px solid #ffc107;
             background-color: #fff3cd !important;
+        }
+
+        /* 管理者專用十字光標 (配合JS動態加入) */
+        td.admin-crosshair, td.admin-crosshair * {
+            cursor: crosshair !important;
         }
     </style>
 </head>
@@ -838,7 +854,7 @@
                     val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
                 }
                 if (val === 'G') grandTotalOt++;
-                if (['特', '病', '事', '生'].includes(val)) grandTotalLv++;
+                if (['特', '病', '事', '生', '返', '差', '曠'].includes(val)) grandTotalLv++;
                 if (val === '未') grandTotalUa++;
             }
         });
@@ -1097,29 +1113,35 @@
                     finalValue = pendingChanges[shiftKey];
                 }
 
+                // ============ 新增：管理員加入十字光標 ============
+                if (isAdmin) {
+                    td.classList.add('admin-crosshair');
+                }
+                // ================================================
+
                 let select = document.createElement('select');
                 select.className = 'shift-select';
                 if (!formOpen) {
                     select.disabled = true;
                 }
 
-                // ============ 權限管理：移除一般員工的 "未" 選項 ============
+                // ============ 權限管理：上班日選項完全一致 ============
                 let baseOptions;
                 if (defaultShift === '') {
-                    // 休假日：只有陳喬志可以選 "未"
+                    // 休假日：未來的"未"僅限管理者，一般員工無"未"
                     baseOptions = isAdmin ? ['', 'G', '未'] : ['', 'G'];
                 } else {
-                    // 上班日：一般員工不能選 "未"，陳喬志才能選
-                    baseOptions = isAdmin ? [defaultShift, '特', '病', '事', '生', '颱', '未'] : [defaultShift, '特', '病', '事', '生', '颱'];
+                    // 上班日：一般員工與管理員選項完全一樣，移除 "未"，新增 "返","差","曠"
+                    baseOptions = [defaultShift, '特', '病', '事', '生', '颱', '返', '差', '曠'];
                 }
 
                 // 若最終值不在選項中（例如一般員工原本儲存了 "未" 在雲端）
                 if (finalValue !== '' && !baseOptions.includes(finalValue)) {
                     if (isAdmin) {
-                        // 陳喬志可以看得到原本在雲端留存的特殊值 (例如未)
+                        // 陳喬志可以看得到原本在雲端留存的特殊值
                         baseOptions.push(finalValue);
                     } else {
-                        // 一般員工看不到 "未" 等無權限選項，強迫重置為預設值 (避免下拉選單顯示異常)
+                        // 一般員工看不到無權限選項，強迫重置為預設值
                         finalValue = defaultShift || '';
                     }
                 }
@@ -1247,7 +1269,7 @@
                 val = (savedValue !== undefined && savedValue !== null) ? savedValue : defaultShift;
             }
             if (val === 'G') otCount++;
-            if (['特', '病', '事', '生'].includes(val)) lvCount++;
+            if (['特', '病', '事', '生', '返', '差', '曠'].includes(val)) lvCount++;
         }
         const otElem = document.getElementById(otCellId);
         const lvElem = document.getElementById(lvCellId);
@@ -1256,7 +1278,7 @@
     }
 
     function updateCellColor(td, value) {
-        td.classList.remove('shift-day', 'shift-night', 'shift-g', 'shift-unattended', 'shift-special', 'shift-personal', 'shift-sick', 'shift-physio', 'shift-typhoon');
+        td.classList.remove('shift-day', 'shift-night', 'shift-g', 'shift-unattended', 'shift-special', 'shift-personal', 'shift-sick', 'shift-physio', 'shift-typhoon', 'shift-return', 'shift-trip', 'shift-absent');
         switch (value) {
             case '日': td.classList.add('shift-day'); break;
             case '夜': td.classList.add('shift-night'); break;
@@ -1267,6 +1289,9 @@
             case '病': td.classList.add('shift-sick'); break;
             case '生': td.classList.add('shift-physio'); break;
             case '颱': td.classList.add('shift-typhoon'); break;
+            case '返': td.classList.add('shift-return'); break;
+            case '差': td.classList.add('shift-trip'); break;
+            case '曠': td.classList.add('shift-absent'); break;
         }
     }
 
