@@ -606,6 +606,11 @@
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
 
+    // ========== 優化項目 1：將日期計算的基準時間與輪班週期設為全域常數 ==========
+    const UTC_EPOCH = Date.UTC(2025, 11, 31);
+    const SHIFT_CYCLE = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
+    // ======================================================================
+
     let cloudData = { shifts: {}, passwords: {}, otLimits: {}, settings: {}, dailyMarks: {} };
     let pendingChanges = {};
 
@@ -835,22 +840,23 @@
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
+    // ========== 優化項目 2：使用優化過的全域常數進行計算 ==========
     function getDefaultShift(year, month, day) {
-        const shiftCycle = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
-        const utcEpoch = Date.UTC(2025, 11, 31);
         const utcTarget = Date.UTC(year, month - 1, day);
-        const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor((utcTarget - UTC_EPOCH) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
+
         if (cycleDay === 0 || cycleDay === 1) {
             let mIdx = month - 1;
             if (cycleDay === 1) {
                 const prevDay = new Date(year, month - 1, day - 1);
                 mIdx = prevDay.getMonth();
             }
-            return shiftCycle[mIdx] || '';
+            return SHIFT_CYCLE[mIdx] || '';
         }
         return '';
     }
+    // ==============================================================
 
     function calculateTotalClassStats(year, month, daysInMonth) {
         let grandTotalOt = 0, grandTotalLv = 0, grandTotalUa = 0;
@@ -1103,7 +1109,11 @@
 
         const thead = document.getElementById('tableHead');
         const tbody = document.getElementById('tableBody');
-        thead.innerHTML = ''; tbody.innerHTML = '';
+
+        // ========== 優化項目 3：使用 DocumentFragment 批次渲染 DOM ==========
+        const theadFragment = document.createDocumentFragment();
+        const tbodyFragment = document.createDocumentFragment();
+        // ===================================================================
 
         let trMark = document.createElement('tr');
         trMark.innerHTML = `
@@ -1130,7 +1140,9 @@
             let thMark = document.createElement('th');
             let selectMark = document.createElement('select');
             selectMark.className = 'daily-mark-select';
-            const markOptions = ['', 'C', '颱', '豪', '歲', '旺'];
+            // ============ 修正排序區塊 ============
+            const markOptions = ['', 'C', '換', '颱', '豪', '歲', '旺'];
+            // ====================================
             markOptions.forEach(opt => {
                 let option = document.createElement('option');
                 option.value = opt;
@@ -1149,7 +1161,7 @@
                 saveDailyMarks(); 
             });
             thMark.appendChild(selectMark);
-            trMark.appendChild(thMark);
+            theadFragment.appendChild(thMark); // 直接加入 Fragment
 
             let thDate = document.createElement('th');
             thDate.innerHTML = `<div class="cell-content">${i}</div>`;
@@ -1163,9 +1175,9 @@
             trDay.appendChild(thDay);
         }
 
-        thead.appendChild(trMark);
-        thead.appendChild(trDate);
-        thead.appendChild(trDay);
+        theadFragment.appendChild(trMark);
+        theadFragment.appendChild(trDate);
+        theadFragment.appendChild(trDay);
 
         const visibleEmployees = isAdmin
             ? employees
@@ -1291,7 +1303,7 @@
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
             }
-            tbody.appendChild(tr);
+            tbodyFragment.appendChild(tr); // 直接加入 Fragment
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
@@ -1307,7 +1319,14 @@
             td.innerHTML = `<div class="cell-content" id="daily_ot_${year}_${month}_${i}"></div>`;
             trDailyOt.appendChild(td);
         }
-        tbody.appendChild(trDailyOt);
+        tbodyFragment.appendChild(trDailyOt);
+
+        // ========== 優化項目 3 (續)：清除並一次性渲染 ==========
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+        thead.appendChild(theadFragment);
+        tbody.appendChild(tbodyFragment);
+        // ===================================================
 
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
@@ -1327,6 +1346,7 @@
         // =================================================
 
         // ============ 綁定管理員專屬十字高亮 ============
+        // 這段程式碼確保只有陳喬志（管理員）登入時才會觸發十字交叉線效果
         if (isAdmin) {
             adminCrosshairInit();
         }
