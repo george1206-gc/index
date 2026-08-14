@@ -1085,8 +1085,43 @@
         }
     });
 
-    // ========== 管理員專屬十字座標高亮功能 ==========
+    // ========== 十字高亮狀態追蹤變數 ==========
+    let crosshairMouseOverHandler = null;
+    let crosshairMouseLeaveHandler = null;
+
+    // 清除十字高亮樣式
+    function clearCrosshairHighlights() {
+        const tbody = document.getElementById('tableBody');
+        const thead = document.getElementById('tableHead');
+        if (tbody) {
+            tbody.querySelectorAll('.active-row').forEach(el => el.classList.remove('active-row'));
+        }
+        if (thead) {
+            thead.querySelectorAll('.active-col').forEach(el => el.classList.remove('active-col'));
+        }
+    }
+
+    // 移除十字高亮事件監聽
+    function removeCrosshairListeners() {
+        const tbody = document.getElementById('tableBody');
+        if (tbody) {
+            if (crosshairMouseOverHandler) {
+                tbody.removeEventListener('mouseover', crosshairMouseOverHandler);
+                crosshairMouseOverHandler = null;
+            }
+            if (crosshairMouseLeaveHandler) {
+                tbody.removeEventListener('mouseleave', crosshairMouseLeaveHandler);
+                crosshairMouseLeaveHandler = null;
+            }
+        }
+        clearCrosshairHighlights();
+    }
+
+    // 啟動十字高亮
     function adminCrosshairInit() {
+        // 先清空舊的狀態
+        removeCrosshairListeners();
+
         const tbody = document.getElementById('tableBody');
         if (!tbody) return;
         const thead = document.getElementById('tableHead');
@@ -1101,7 +1136,7 @@
             currentColHeaders = [];
         };
 
-        tbody.addEventListener('mouseover', function(e) {
+        crosshairMouseOverHandler = function(e) {
             const td = e.target.closest('td');
             if (!td) return;
 
@@ -1114,7 +1149,6 @@
             currentRow = tr;
             tr.classList.add('active-row');
 
-            // 高亮正確的直列表頭
             const theadTrs = thead.querySelectorAll('tr');
             if (theadTrs.length >= 3) {
                 const ths0 = theadTrs[0].querySelectorAll('th'); // 備註與S4行
@@ -1123,16 +1157,15 @@
                 
                 let targetCols = [];
                 
-                // 因為「當月加班/當月請假」跨了 3 列 (rowspan 3)，所以直列索引要對應處理
                 if (colIndex === 0) {
                     if (ths0.length > 0) targetCols.push(ths0[0]);
                 } else if (colIndex === 1) {
                     if (ths0.length > 1) targetCols.push(ths0[1]);
-                } else if (colIndex === 2) { // 第3列是 S4 / 日期 / 星期
+                } else if (colIndex === 2) { 
                     if (ths0.length > 2) targetCols.push(ths0[2]);
                     if (ths1.length > 0) targetCols.push(ths1[0]);
                     if (ths2.length > 0) targetCols.push(ths2[0]);
-                } else if (colIndex >= 3) { // 第4列以後是實際的日期數字
+                } else if (colIndex >= 3) { 
                     if (ths0.length > colIndex) targetCols.push(ths0[colIndex]);
                     if (ths1.length > (colIndex - 2)) targetCols.push(ths1[colIndex - 2]);
                     if (ths2.length > (colIndex - 2)) targetCols.push(ths2[colIndex - 2]);
@@ -1143,11 +1176,14 @@
                     currentColHeaders.push(th);
                 });
             }
-        });
+        };
 
-        tbody.addEventListener('mouseleave', function(e) {
+        crosshairMouseLeaveHandler = function(e) {
             clearHighlights();
-        });
+        };
+
+        tbody.addEventListener('mouseover', crosshairMouseOverHandler);
+        tbody.addEventListener('mouseleave', crosshairMouseLeaveHandler);
     }
     // ====================================================
 
@@ -1158,7 +1194,7 @@
         const val = isEnabled ? 'true' : 'false';
         cloudData.settings['admin_crosshair_enabled'] = val;
         postCloudData({ action: 'saveSetting', key: 'admin_crosshair_enabled', value: val });
-        renderTable(); // 重新渲染以套用或移除效果
+        renderTable(); 
     });
     // ============================================
 
@@ -1413,10 +1449,14 @@
             // 唯有開關為 ON 才觸發十字高亮
             if (isEnabled) {
                 adminCrosshairInit();
+            } else {
+                // 關閉時，徹底清除事件與殘留樣式
+                removeCrosshairListeners();
             }
         } else {
             confirmBtn.style.display = 'none';
             crosshairControl.style.display = 'none'; // 一般員工看不到
+            removeCrosshairListeners(); // 防呆：若切換帳號後也確保移除
         }
         // =================================================
     }
