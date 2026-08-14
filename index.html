@@ -606,11 +606,6 @@
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
 
-    // ========== 優化項目 1：將日期計算的基準時間與輪班週期設為全域常數 ==========
-    const UTC_EPOCH = Date.UTC(2025, 11, 31);
-    const SHIFT_CYCLE = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
-    // ======================================================================
-
     let cloudData = { shifts: {}, passwords: {}, otLimits: {}, settings: {}, dailyMarks: {} };
     let pendingChanges = {};
 
@@ -840,23 +835,22 @@
         postCloudData({ action: 'saveOtLimit', key: limitKey, value: this.value });
     });
 
-    // ========== 優化項目 2：使用優化過的全域常數進行計算 ==========
     function getDefaultShift(year, month, day) {
+        const shiftCycle = ['日', '夜', '夜', '日', '日', '夜', '夜', '日', '日', '夜', '夜', '日'];
+        const utcEpoch = Date.UTC(2025, 11, 31);
         const utcTarget = Date.UTC(year, month - 1, day);
-        const diffDays = Math.floor((utcTarget - UTC_EPOCH) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor((utcTarget - utcEpoch) / (1000 * 60 * 60 * 24));
         const cycleDay = ((diffDays % 4) + 4) % 4;
-
         if (cycleDay === 0 || cycleDay === 1) {
             let mIdx = month - 1;
             if (cycleDay === 1) {
                 const prevDay = new Date(year, month - 1, day - 1);
                 mIdx = prevDay.getMonth();
             }
-            return SHIFT_CYCLE[mIdx] || '';
+            return shiftCycle[mIdx] || '';
         }
         return '';
     }
-    // ==============================================================
 
     function calculateTotalClassStats(year, month, daysInMonth) {
         let grandTotalOt = 0, grandTotalLv = 0, grandTotalUa = 0;
@@ -1109,11 +1103,7 @@
 
         const thead = document.getElementById('tableHead');
         const tbody = document.getElementById('tableBody');
-
-        // ========== 優化項目 3：使用 DocumentFragment 批次渲染 DOM ==========
-        const theadFragment = document.createDocumentFragment();
-        const tbodyFragment = document.createDocumentFragment();
-        // ===================================================================
+        thead.innerHTML = ''; tbody.innerHTML = '';
 
         let trMark = document.createElement('tr');
         trMark.innerHTML = `
@@ -1161,7 +1151,7 @@
                 saveDailyMarks(); 
             });
             thMark.appendChild(selectMark);
-            theadFragment.appendChild(thMark); // 直接加入 Fragment
+            trMark.appendChild(thMark);
 
             let thDate = document.createElement('th');
             thDate.innerHTML = `<div class="cell-content">${i}</div>`;
@@ -1175,9 +1165,9 @@
             trDay.appendChild(thDay);
         }
 
-        theadFragment.appendChild(trMark);
-        theadFragment.appendChild(trDate);
-        theadFragment.appendChild(trDay);
+        thead.appendChild(trMark);
+        thead.appendChild(trDate);
+        thead.appendChild(trDay);
 
         const visibleEmployees = isAdmin
             ? employees
@@ -1303,7 +1293,7 @@
                 updateCellColor(td, finalValue);
                 tr.appendChild(td);
             }
-            tbodyFragment.appendChild(tr); // 直接加入 Fragment
+            tbody.appendChild(tr);
             calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId);
         });
 
@@ -1319,14 +1309,7 @@
             td.innerHTML = `<div class="cell-content" id="daily_ot_${year}_${month}_${i}"></div>`;
             trDailyOt.appendChild(td);
         }
-        tbodyFragment.appendChild(trDailyOt);
-
-        // ========== 優化項目 3 (續)：清除並一次性渲染 ==========
-        thead.innerHTML = '';
-        tbody.innerHTML = '';
-        thead.appendChild(theadFragment);
-        tbody.appendChild(tbodyFragment);
-        // ===================================================
+        tbody.appendChild(trDailyOt);
 
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
