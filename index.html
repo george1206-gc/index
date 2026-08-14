@@ -211,7 +211,7 @@
             white-space: nowrap;
         }
 
-        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn, .edit-ticker-btn {
+        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn, .edit-ticker-btn, .edit-employee-btn {
             padding: 6px 8px;
             font-size: 12px;
             font-weight: bold;
@@ -226,6 +226,7 @@
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
         .edit-ticker-btn { background-color: #fd7e14; } /* 橘色 */
+        .edit-employee-btn { background-color: #6f42c1; } /* 紫色 */
 
         .form-status-btn.open { background-color: #28a745; }
         .form-status-btn.closed { background-color: #6c757d; }
@@ -546,6 +547,7 @@
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
         }
+        
         /* 管理者編輯跑馬燈彈窗 */
         #tickerEditModal .custom-modal-box {
             width: 90%;
@@ -562,6 +564,67 @@
             resize: vertical;
             margin-bottom: 15px;
         }
+
+        /* =================== 管理人員清單樣式 =================== */
+        #employeeEditModal .custom-modal-box {
+            width: 90%;
+            max-width: 450px;
+        }
+        #employeeListContainer {
+            text-align: left;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin: 10px 0 15px 0;
+            border-radius: 4px;
+        }
+        .emp-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 5px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .emp-item:last-child { border-bottom: none; }
+        .emp-item .emp-name { font-size: 16px; flex: 1; }
+        .emp-item .emp-actions { display: flex; gap: 8px; }
+        .emp-item .emp-actions button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .emp-item .emp-actions .edit-btn:hover { background: #e2e6ea; }
+        .emp-item .emp-actions .del-btn:hover { background: #f8d7da; color: #dc3545; }
+        
+        #employeeAddBox {
+            display: flex;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        #employeeAddBox input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            outline: none;
+        }
+        #employeeAddBox button {
+            padding: 8px 15px;
+            font-weight: bold;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #employeeAddBox button:hover { background-color: #218838; }
     </style>
 </head>
 <body>
@@ -647,6 +710,22 @@
     </div>
 </div>
 
+<!-- ==== 管理者管理人員視窗 ==== -->
+<div id="employeeEditModal" class="custom-modal-overlay">
+    <div class="custom-modal-box">
+        <h3>Manage Staff / 管理人員</h3>
+        <p>Click name to edit, click trash to delete.<br>點擊姓名可修改，點擊垃圾桶可刪除。</p>
+        <div id="employeeListContainer"></div>
+        <div id="employeeAddBox">
+            <input type="text" id="newEmployeeInput" placeholder="Add name / 輸入新姓名...">
+            <button id="addEmployeeBtn">➕ Add / 新增</button>
+        </div>
+        <div class="modal-btn-group" style="margin-top: 15px;">
+            <button id="employeeSaveBtn" class="modal-btn-confirm">Save & Close / 儲存並關閉</button>
+        </div>
+    </div>
+</div>
+
 <!-- ==== 主應用程式 ==== -->
 <div id="mainApp" class="main-app">
     <div class="header-controls">
@@ -696,6 +775,9 @@
 
             <!-- ========== 管理者專用：編輯跑馬燈按鈕 ========== -->
             <button id="editTickerBtn" class="edit-ticker-btn" style="display: none;">📝 修改跑馬燈</button>
+            
+            <!-- ========== 管理者專用：管理人員按鈕 ========== -->
+            <button id="editEmployeeBtn" class="edit-employee-btn" style="display: none;">👥 管理人員</button>
         </div>
     </div>
 
@@ -715,11 +797,14 @@
 <script>
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5qf_5Gf_4isMufDm80-3C0RlKWjlsTmqgkWyNOjMuvdKsWpWVOVwqFZcGAxIK_ZZK/exec";
 
-    const employees = [
+    // 將原本的 const 改為 let，並從雲端讀取
+    let employees = [
         "陳喬志", "楊代億", "廖曉彤", "蔡靜儀", "賴建亦", "施榮傑",
         "陰其德", "黃譯鋒", "楊雅婷", "羅啟倫", "埃爾默", "拉斯特",
         "雷伊", "漢斯", "達利斯", "甘達", "特拉多", "達爾文"
     ];
+
+    const defaultEmployees = [...employees];
 
     const weekDaysTW = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -765,7 +850,7 @@
     const totalLvDisplay = document.getElementById('totalLvDisplay');
     const totalUaDisplay = document.getElementById('totalUaDisplay');
 
-    // 額外獲取 DOM
+    // 獲取新 DOM
     const crosshairControl = document.getElementById('crosshairControl');
     const crosshairToggle = document.getElementById('crosshairToggle');
     const editTickerBtn = document.getElementById('editTickerBtn');
@@ -776,14 +861,26 @@
     const tickerContainer = document.getElementById('tickerContainer');
     const tickerTextEl = document.getElementById('tickerText');
 
+    // 管理人員用 DOM
+    const editEmployeeBtn = document.getElementById('editEmployeeBtn');
+    const employeeEditModal = document.getElementById('employeeEditModal');
+    const employeeListContainer = document.getElementById('employeeListContainer');
+    const newEmployeeInput = document.getElementById('newEmployeeInput');
+    const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+    const employeeSaveBtn = document.getElementById('employeeSaveBtn');
+
     function showSync() { syncStatus.style.display = 'block'; }
     function hideSync() { syncStatus.style.display = 'none'; }
 
-    employees.forEach(emp => {
-        let opt = document.createElement('option');
-        opt.value = emp; opt.textContent = emp;
-        loginNameSelect.appendChild(opt);
-    });
+    // 更新登入下拉選單（使用動態 employees）
+    function updateLoginSelect() {
+        loginNameSelect.innerHTML = '<option value="">-- 請選擇姓名 --</option>';
+        employees.forEach(emp => {
+            let opt = document.createElement('option');
+            opt.value = emp; opt.textContent = emp;
+            loginNameSelect.appendChild(opt);
+        });
+    }
 
     async function fetchCloudData() {
         showSync();
@@ -800,13 +897,30 @@
             } else {
                 cloudData.dailyMarks = {};
             }
-            
-            // 如果設定中沒有跑馬燈文字，給予預設值並儲存
+
+            // 讀取雲端儲存的人員名單
+            if (cloudData.settings && cloudData.settings['employee_list']) {
+                try {
+                    const savedEmployees = JSON.parse(cloudData.settings['employee_list']);
+                    if (Array.isArray(savedEmployees) && savedEmployees.length > 0) {
+                        employees = savedEmployees;
+                    }
+                } catch (e) {
+                    console.warn("解析員工列表失敗，使用預設值");
+                    employees = [...defaultEmployees];
+                }
+            } else {
+                // 如果雲端沒有此設定，建立預設值並儲存
+                if (!cloudData.settings) cloudData.settings = {};
+                cloudData.settings['employee_list'] = JSON.stringify(employees);
+                postCloudData({ action: 'saveSetting', key: 'employee_list', value: JSON.stringify(employees) });
+            }
+
+            // 讀取跑馬燈預設
             if (!cloudData.settings || !cloudData.settings['ticker_text']) {
                 if (!cloudData.settings) cloudData.settings = {};
                 const defaultText = '※"G"→加班；"C"→加班費1倍；"換"→換班日(不加班)；"歲"→歲修(不上班)；"旺"→尾牙(不上班)';
                 cloudData.settings['ticker_text'] = defaultText;
-                // 非同步儲存，但不影響使用者體驗
                 postCloudData({ action: 'saveSetting', key: 'ticker_text', value: defaultText });
             }
 
@@ -814,6 +928,7 @@
             console.error("雲端讀取失敗", err);
         } finally {
             hideSync();
+            updateLoginSelect(); // 更新登入選單
         }
     }
 
@@ -1286,9 +1401,104 @@
         await postCloudData({ action: 'saveSetting', key: 'ticker_text', value: newText });
         
         tickerEditModal.style.display = 'none';
-        renderTable(); // 重新渲染以更新跑馬燈內容
+        renderTable(); 
     });
-    // ========================================
+
+    // ========== 管理人員清單功能 (核心) ==========
+    function openEmployeeEditModal() {
+        renderEmployeeListUI();
+        employeeEditModal.style.display = 'flex';
+    }
+
+    function renderEmployeeListUI() {
+        employeeListContainer.innerHTML = '';
+        employees.forEach((name, index) => {
+            const div = document.createElement('div');
+            div.className = 'emp-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'emp-name';
+            nameSpan.textContent = name;
+            
+            // 點擊姓名直接觸發修改
+            nameSpan.addEventListener('click', function() {
+                const newName = prompt(`Edit name for "${name}" / 修改姓名:`, name);
+                if (newName && newName.trim() !== '' && newName.trim() !== name) {
+                    if (employees.includes(newName.trim())) {
+                        alert("This name already exists! / 此姓名已存在！");
+                        return;
+                    }
+                    employees[index] = newName.trim();
+                    renderEmployeeListUI(); // 刷新清單
+                }
+            });
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'emp-actions';
+            
+            // 刪除按鈕
+            const delBtn = document.createElement('button');
+            delBtn.className = 'del-btn';
+            delBtn.innerHTML = '🗑️';
+            delBtn.title = "Delete / 刪除";
+            delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm(`Are you sure you want to delete "${name}"? / 確定要刪除 "${name}" 嗎？`)) {
+                    employees.splice(index, 1);
+                    renderEmployeeListUI(); // 刷新清單
+                }
+            });
+
+            actionsDiv.appendChild(delBtn);
+            div.appendChild(nameSpan);
+            div.appendChild(actionsDiv);
+            employeeListContainer.appendChild(div);
+        });
+    }
+
+    addEmployeeBtn.addEventListener('click', function() {
+        const newName = newEmployeeInput.value.trim();
+        if (!newName) {
+            alert("Please input a name! / 請輸入姓名！");
+            return;
+        }
+        if (employees.includes(newName)) {
+            alert("This name already exists! / 此姓名已存在！");
+            newEmployeeInput.value = '';
+            return;
+        }
+        employees.push(newName);
+        newEmployeeInput.value = '';
+        renderEmployeeListUI();
+    });
+
+    // Enter 鍵觸發新增
+    newEmployeeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            addEmployeeBtn.click();
+        }
+    });
+
+    employeeSaveBtn.addEventListener('click', async function() {
+        // 過濾與防呆
+        if (employees.length === 0) {
+            alert("List cannot be empty! / 名單不能為空！");
+            return;
+        }
+        if (!cloudData.settings) cloudData.settings = {};
+        const serialized = JSON.stringify(employees);
+        cloudData.settings['employee_list'] = serialized;
+        
+        await postCloudData({ action: 'saveSetting', key: 'employee_list', value: serialized });
+        employeeEditModal.style.display = 'none';
+        
+        updateLoginSelect(); // 更新登入下拉選單
+        renderTable(); // 重新渲染排班表
+        alert("Staff list updated successfully! / 人員名單已更新！");
+    });
+
+    editEmployeeBtn.addEventListener('click', openEmployeeEditModal);
+    // ================================================
 
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
@@ -1517,6 +1727,7 @@
             confirmBtn.style.display = 'none';
             crosshairControl.style.display = 'flex';
             editTickerBtn.style.display = 'inline-block';
+            editEmployeeBtn.style.display = 'inline-block'; // 管理員才能看到"管理人員"按鈕
             
             const isEnabled = cloudData.settings && cloudData.settings['admin_crosshair_enabled'] === 'true';
             crosshairToggle.checked = isEnabled;
@@ -1530,6 +1741,7 @@
             confirmBtn.style.display = 'none';
             crosshairControl.style.display = 'none';
             editTickerBtn.style.display = 'none';
+            editEmployeeBtn.style.display = 'none'; // 一般員工看不見
             removeCrosshairListeners();
         }
 
@@ -1539,9 +1751,8 @@
             tickerTextEl.textContent = textContent;
             tickerContainer.style.display = 'block';
 
-            // 重新觸發動畫
             tickerTextEl.style.animation = 'none';
-            tickerTextEl.offsetHeight; /* 觸發重繪 */
+            tickerTextEl.offsetHeight;
             tickerTextEl.style.animation = `scrollText 35s linear infinite`;
         } else {
             tickerContainer.style.display = 'none';
