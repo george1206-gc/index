@@ -475,6 +475,53 @@
             background-color: #d2e6fc !important;
         }
         /* ========================================================= */
+
+        /* =================== 滑動開關切換樣式 =================== */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 18px;
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
+        /* ======================================================== */
     </style>
 </head>
 <body>
@@ -584,6 +631,16 @@
             <button id="changePwdBtn" class="change-pwd-btn">修改密碼</button>
             <button id="logoutBtn" class="logout-btn">登出</button>
             <button id="toggleStatsBtn" class="toggle-btn">隱藏統計</button>
+            
+            <!-- ========== 新增：十字高亮開關 ========== -->
+            <div class="control-group" id="crosshairControl" style="display: none; background-color: #e0e0e0; border-color: #999;">
+                <span style="font-size:12px; color:#333;">十字高亮</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="crosshairToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <!-- ===================================== -->
         </div>
     </div>
 
@@ -647,6 +704,10 @@
     const totalOtDisplay = document.getElementById('totalOtDisplay');
     const totalLvDisplay = document.getElementById('totalLvDisplay');
     const totalUaDisplay = document.getElementById('totalUaDisplay');
+
+    // 額外獲取新開關的 DOM
+    const crosshairControl = document.getElementById('crosshairControl');
+    const crosshairToggle = document.getElementById('crosshairToggle');
 
     function showSync() { syncStatus.style.display = 'block'; }
     function hideSync() { syncStatus.style.display = 'none'; }
@@ -713,6 +774,15 @@
     function updateFormStatusUI() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         const open = isFormOpen();
+        
+        // ========== 修正：一般員工完全看不見此按鈕 ==========
+        if (currentUser !== "陳喬志") {
+            formStatusBtn.style.display = 'none';
+        } else {
+            formStatusBtn.style.display = 'inline-block';
+        }
+        // ===============================================
+
         if (open) {
             formStatusBtn.textContent = '填表：開啟';
             formStatusBtn.className = 'form-status-btn open';
@@ -1081,6 +1151,17 @@
     }
     // ====================================================
 
+    // ========== 管理員十字高亮開關設定 ==========
+    crosshairToggle.addEventListener('change', function() {
+        const isEnabled = this.checked;
+        if (!cloudData.settings) cloudData.settings = {};
+        const val = isEnabled ? 'true' : 'false';
+        cloudData.settings['admin_crosshair_enabled'] = val;
+        postCloudData({ action: 'saveSetting', key: 'admin_crosshair_enabled', value: val });
+        renderTable(); // 重新渲染以套用或移除效果
+    });
+    // ============================================
+
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
@@ -1091,8 +1172,14 @@
         updateFormStatusUI();
         const formOpen = isFormOpen();
 
-        // 只有陳喬志能調配加班限制
-        otLimitSelect.disabled = !isAdmin || !formOpen;
+        // ========== 修正：一般員工看不見加班限制 ==========
+        if (isAdmin) {
+            otLimitSelect.style.display = 'inline-block';
+            otLimitSelect.disabled = !formOpen;
+        } else {
+            otLimitSelect.style.display = 'none';
+        }
+        // ===============================================
 
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
@@ -1314,26 +1401,24 @@
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
         
-        // ============ 渲染完畢最後決定按鈕顯示 ============
+        // ============ 渲染完畢最後決定按鈕與開關顯示 ============
         if (isAdmin) {
             confirmBtn.style.display = 'none'; // 陳喬志絕對看不到
-        } else {
-            if (Object.keys(pendingChanges).length > 0) {
-                confirmBtn.style.display = 'block';
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = `✔ Confirm / 確認儲存 (${Object.keys(pendingChanges).length})`;
-            } else {
-                confirmBtn.style.display = 'none';
+            crosshairControl.style.display = 'flex'; // 陳喬志顯示開關
+            
+            // 同步開關狀態
+            const isEnabled = cloudData.settings && cloudData.settings['admin_crosshair_enabled'] === 'true';
+            crosshairToggle.checked = isEnabled;
+
+            // 唯有開關為 ON 才觸發十字高亮
+            if (isEnabled) {
+                adminCrosshairInit();
             }
+        } else {
+            confirmBtn.style.display = 'none';
+            crosshairControl.style.display = 'none'; // 一般員工看不到
         }
         // =================================================
-
-        // ============ 綁定管理員專屬十字高亮 ============
-        // 這段程式碼確保只有陳喬志（管理員）登入時才會觸發十字交叉線效果
-        if (isAdmin) {
-            adminCrosshairInit();
-        }
-        // ================================================
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
