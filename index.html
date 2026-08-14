@@ -211,7 +211,7 @@
             white-space: nowrap;
         }
 
-        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn {
+        .change-pwd-btn, .logout-btn, .toggle-btn, .form-status-btn, .edit-ticker-btn {
             padding: 6px 8px;
             font-size: 12px;
             font-weight: bold;
@@ -225,6 +225,7 @@
         .change-pwd-btn { background-color: #17a2b8; }
         .logout-btn { background-color: #dc3545; }
         .toggle-btn { background-color: #007bff; }
+        .edit-ticker-btn { background-color: #fd7e14; } /* 橘色 */
 
         .form-status-btn.open { background-color: #28a745; }
         .form-status-btn.closed { background-color: #6c757d; }
@@ -474,7 +475,6 @@
         .active-col {
             background-color: #d2e6fc !important;
         }
-        /* ========================================================= */
 
         /* =================== 滑動開關切換樣式 =================== */
         .toggle-switch {
@@ -521,7 +521,47 @@
         .slider.round:before {
             border-radius: 50%;
         }
-        /* ======================================================== */
+
+        /* =================== 跑馬燈容器與樣式 =================== */
+        #tickerContainer {
+            width: 100%;
+            overflow: hidden;
+            background-color: #fffbe6;
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 8px 0;
+            white-space: nowrap;
+            box-sizing: border-box;
+            position: relative;
+            display: none; /* 預設隱藏 */
+        }
+        #tickerText {
+            display: inline-block;
+            padding-left: 100%;
+            animation: scrollText 35s linear infinite;
+            font-size: 15px;
+            color: #333;
+        }
+        @keyframes scrollText {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        /* 管理者編輯跑馬燈彈窗 */
+        #tickerEditModal .custom-modal-box {
+            width: 90%;
+            max-width: 500px;
+        }
+        #tickerEditModal textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -594,6 +634,19 @@
     </div>
 </div>
 
+<!-- ==== 管理員修改跑馬燈視窗 ==== -->
+<div id="tickerEditModal" class="custom-modal-overlay">
+    <div class="custom-modal-box">
+        <h3>Edit Ticker / 修改跑馬燈</h3>
+        <p>Please edit the rolling text below:<br>請在下方修改跑馬燈文字內容：</p>
+        <textarea id="tickerInputArea"></textarea>
+        <div class="modal-btn-group">
+            <button id="tickerSaveBtn" class="modal-btn-confirm">Save / 儲存</button>
+            <button id="tickerCancelBtn" class="modal-btn-cancel">Cancel / 取消</button>
+        </div>
+    </div>
+</div>
+
 <!-- ==== 主應用程式 ==== -->
 <div id="mainApp" class="main-app">
     <div class="header-controls">
@@ -632,7 +685,7 @@
             <button id="logoutBtn" class="logout-btn">登出</button>
             <button id="toggleStatsBtn" class="toggle-btn">隱藏統計</button>
             
-            <!-- ========== 新增：十字高亮開關 ========== -->
+            <!-- ========== 十字高亮開關 ========== -->
             <div class="control-group" id="crosshairControl" style="display: none; background-color: #e0e0e0; border-color: #999;">
                 <span style="font-size:12px; color:#333;">十字高亮</span>
                 <label class="toggle-switch">
@@ -640,7 +693,9 @@
                     <span class="slider round"></span>
                 </label>
             </div>
-            <!-- ===================================== -->
+
+            <!-- ========== 管理者專用：編輯跑馬燈按鈕 ========== -->
+            <button id="editTickerBtn" class="edit-ticker-btn" style="display: none;">📝 修改跑馬燈</button>
         </div>
     </div>
 
@@ -649,6 +704,11 @@
             <thead id="tableHead"></thead>
             <tbody id="tableBody"></tbody>
         </table>
+    </div>
+
+    <!-- ========== 跑馬燈顯示區塊 ========== -->
+    <div id="tickerContainer">
+        <div id="tickerText"></div>
     </div>
 </div>
 
@@ -705,9 +765,16 @@
     const totalLvDisplay = document.getElementById('totalLvDisplay');
     const totalUaDisplay = document.getElementById('totalUaDisplay');
 
-    // 額外獲取新開關的 DOM
+    // 額外獲取 DOM
     const crosshairControl = document.getElementById('crosshairControl');
     const crosshairToggle = document.getElementById('crosshairToggle');
+    const editTickerBtn = document.getElementById('editTickerBtn');
+    const tickerEditModal = document.getElementById('tickerEditModal');
+    const tickerInputArea = document.getElementById('tickerInputArea');
+    const tickerSaveBtn = document.getElementById('tickerSaveBtn');
+    const tickerCancelBtn = document.getElementById('tickerCancelBtn');
+    const tickerContainer = document.getElementById('tickerContainer');
+    const tickerTextEl = document.getElementById('tickerText');
 
     function showSync() { syncStatus.style.display = 'block'; }
     function hideSync() { syncStatus.style.display = 'none'; }
@@ -733,6 +800,16 @@
             } else {
                 cloudData.dailyMarks = {};
             }
+            
+            // 如果設定中沒有跑馬燈文字，給予預設值並儲存
+            if (!cloudData.settings || !cloudData.settings['ticker_text']) {
+                if (!cloudData.settings) cloudData.settings = {};
+                const defaultText = '※"G"→加班；"C"→加班費1倍；"換"→換班日(不加班)；"歲"→歲修(不上班)；"旺"→尾牙(不上班)';
+                cloudData.settings['ticker_text'] = defaultText;
+                // 非同步儲存，但不影響使用者體驗
+                postCloudData({ action: 'saveSetting', key: 'ticker_text', value: defaultText });
+            }
+
         } catch (err) {
             console.error("雲端讀取失敗", err);
         } finally {
@@ -775,13 +852,11 @@
         const currentUser = sessionStorage.getItem('s4_current_user');
         const open = isFormOpen();
         
-        // ========== 修正：一般員工完全看不見此按鈕 ==========
         if (currentUser !== "陳喬志") {
             formStatusBtn.style.display = 'none';
         } else {
             formStatusBtn.style.display = 'inline-block';
         }
-        // ===============================================
 
         if (open) {
             formStatusBtn.textContent = '填表：開啟';
@@ -819,7 +894,6 @@
         }
     }
 
-    // 登入按鈕：驗證成功馬上顯示同步中
     loginSubmitBtn.addEventListener('click', function() {
         const selectedUser = loginNameSelect.value;
         const inputPwd = loginPasswordInput.value;
@@ -945,13 +1019,11 @@
         if (totalUaDisplay) totalUaDisplay.textContent = `加班未到: ${grandTotalUa}天`;
     }
 
-    // ======= 修正：「加班人數」在上班日顯示空白 ======= 
     function calculateDailyOtStats(year, month, daysInMonth) {
         for (let i = 1; i <= daysInMonth; i++) {
             const defaultShift = getDefaultShift(year, month, i);
             const dailyElem = document.getElementById(`daily_ot_${year}_${month}_${i}`);
             
-            // 如果當天是預設上班日 (日/夜)，就直接留空，不顯示 0
             if (defaultShift === '日' || defaultShift === '夜') {
                 if (dailyElem) dailyElem.textContent = '';
                 continue;
@@ -978,10 +1050,8 @@
         }
     }
 
-    // 更新右下角確認按鈕狀態
     function updateConfirmBtnState() {
         const currentUser = sessionStorage.getItem('s4_current_user');
-        // 陳喬志不顯示此按鈕
         if (currentUser === "陳喬志") {
             confirmBtn.style.display = 'none';
             return;
@@ -1085,11 +1155,10 @@
         }
     });
 
-    // ========== 十字高亮狀態追蹤變數 ==========
+    // ========== 十字高亮狀態追蹤 ==========
     let crosshairMouseOverHandler = null;
     let crosshairMouseLeaveHandler = null;
 
-    // 清除十字高亮樣式
     function clearCrosshairHighlights() {
         const tbody = document.getElementById('tableBody');
         const thead = document.getElementById('tableHead');
@@ -1101,7 +1170,6 @@
         }
     }
 
-    // 移除十字高亮事件監聽
     function removeCrosshairListeners() {
         const tbody = document.getElementById('tableBody');
         if (tbody) {
@@ -1117,9 +1185,7 @@
         clearCrosshairHighlights();
     }
 
-    // 啟動十字高亮
     function adminCrosshairInit() {
-        // 先清空舊的狀態
         removeCrosshairListeners();
 
         const tbody = document.getElementById('tableBody');
@@ -1143,7 +1209,7 @@
             clearHighlights();
 
             const tr = td.parentElement;
-            if (tr.classList.contains('daily-ot-row')) return; // 避開加班人數統計行
+            if (tr.classList.contains('daily-ot-row')) return;
 
             const colIndex = td.cellIndex;
             currentRow = tr;
@@ -1151,9 +1217,9 @@
 
             const theadTrs = thead.querySelectorAll('tr');
             if (theadTrs.length >= 3) {
-                const ths0 = theadTrs[0].querySelectorAll('th'); // 備註與S4行
-                const ths1 = theadTrs[1].querySelectorAll('th'); // 日期行
-                const ths2 = theadTrs[2].querySelectorAll('th'); // 星期行
+                const ths0 = theadTrs[0].querySelectorAll('th');
+                const ths1 = theadTrs[1].querySelectorAll('th');
+                const ths2 = theadTrs[2].querySelectorAll('th');
                 
                 let targetCols = [];
                 
@@ -1185,9 +1251,7 @@
         tbody.addEventListener('mouseover', crosshairMouseOverHandler);
         tbody.addEventListener('mouseleave', crosshairMouseLeaveHandler);
     }
-    // ====================================================
 
-    // ========== 管理員十字高亮開關設定 ==========
     crosshairToggle.addEventListener('change', function() {
         const isEnabled = this.checked;
         if (!cloudData.settings) cloudData.settings = {};
@@ -1196,26 +1260,51 @@
         postCloudData({ action: 'saveSetting', key: 'admin_crosshair_enabled', value: val });
         renderTable(); 
     });
-    // ============================================
+
+    // ========== 跑馬燈文字編輯功能 ==========
+    editTickerBtn.addEventListener('click', function() {
+        const currentText = cloudData.settings && cloudData.settings['ticker_text'] ? cloudData.settings['ticker_text'] : '';
+        tickerInputArea.value = currentText;
+        tickerEditModal.style.display = 'flex';
+    });
+
+    tickerCancelBtn.addEventListener('click', function() {
+        tickerEditModal.style.display = 'none';
+    });
+
+    tickerEditModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+
+    tickerSaveBtn.addEventListener('click', async function() {
+        const newText = tickerInputArea.value.trim();
+        if (!cloudData.settings) cloudData.settings = {};
+        
+        cloudData.settings['ticker_text'] = newText;
+        await postCloudData({ action: 'saveSetting', key: 'ticker_text', value: newText });
+        
+        tickerEditModal.style.display = 'none';
+        renderTable(); // 重新渲染以更新跑馬燈內容
+    });
+    // ========================================
 
     function renderTable() {
         const currentUser = sessionStorage.getItem('s4_current_user');
         if (!currentUser) return;
 
-        // 確認當前用戶是否為管理者 (陳喬志)
         const isAdmin = (currentUser === "陳喬志");
 
         updateFormStatusUI();
         const formOpen = isFormOpen();
 
-        // ========== 修正：一般員工看不見加班限制 ==========
         if (isAdmin) {
             otLimitSelect.style.display = 'inline-block';
             otLimitSelect.disabled = !formOpen;
         } else {
             otLimitSelect.style.display = 'none';
         }
-        // ===============================================
 
         const year = parseInt(yearSelect.value);
         const month = parseInt(monthSelect.value);
@@ -1253,9 +1342,7 @@
             let thMark = document.createElement('th');
             let selectMark = document.createElement('select');
             selectMark.className = 'daily-mark-select';
-            // ============ 修正排序區塊 ============
             const markOptions = ['', 'C', '換', '颱', '豪', '歲', '旺'];
-            // ====================================
             markOptions.forEach(opt => {
                 let option = document.createElement('option');
                 option.value = opt;
@@ -1264,7 +1351,6 @@
             });
             const currentMark = cloudData.dailyMarks[markKey] || '';
             selectMark.value = currentMark;
-            // 只有陳喬志能修改備註
             if (!isAdmin) {
                 selectMark.disabled = true;
             }
@@ -1322,27 +1408,20 @@
                     select.disabled = true;
                 }
 
-                // ============ 權限管理：上班日選項完全一致 ============
                 let baseOptions;
                 if (defaultShift === '') {
-                    // 休假日：未來的"未"僅限管理者，一般員工無"未"
                     baseOptions = isAdmin ? ['', 'G', '未'] : ['', 'G'];
                 } else {
-                    // 上班日：一般員工與管理員選項完全一樣，移除 "未"，新增 "返","差","曠"
                     baseOptions = [defaultShift, '特', '病', '事', '生', '颱', '返', '差', '曠'];
                 }
 
-                // 若最終值不在選項中（例如一般員工原本儲存了 "未" 在雲端）
                 if (finalValue !== '' && !baseOptions.includes(finalValue)) {
                     if (isAdmin) {
-                        // 陳喬志可以看得到原本在雲端留存的特殊值
                         baseOptions.push(finalValue);
                     } else {
-                        // 一般員工看不到無權限選項，強迫重置為預設值
                         finalValue = defaultShift || '';
                     }
                 }
-                // ========================================================
 
                 baseOptions.forEach(opt => {
                     let option = document.createElement('option');
@@ -1383,9 +1462,7 @@
                         }
                     }
 
-                    // ============ 區分權限邏輯 ============
                     if (isAdmin) {
-                        // 陳喬志：直接即時儲存，不經過暫存區，也不顯示按鈕
                         if (!cloudData.shifts) cloudData.shifts = {};
                         cloudData.shifts[shiftKey] = newVal;
                         postCloudData({ action: 'saveShift', key: shiftKey, value: newVal });
@@ -1396,7 +1473,6 @@
                         calculateTotalClassStats(year, month, daysInMonth);
                         calculateDailyOtStats(year, month, daysInMonth);
                     } else {
-                        // 一般員工：進入待儲存模式
                         pendingChanges[shiftKey] = newVal;
                         finalValue = newVal;
                         td.classList.add('pending-edit');
@@ -1406,7 +1482,6 @@
                         calculateDailyOtStats(year, month, daysInMonth);
                         updateConfirmBtnState();
                     }
-                    // ======================================
                 });
 
                 td.appendChild(select);
@@ -1437,28 +1512,41 @@
         calculateTotalClassStats(year, month, daysInMonth);
         calculateDailyOtStats(year, month, daysInMonth);
         
-        // ============ 渲染完畢最後決定按鈕與開關顯示 ============
+        // ============ 渲染完畢決定按鈕與開關、跑馬燈顯示 ============
         if (isAdmin) {
-            confirmBtn.style.display = 'none'; // 陳喬志絕對看不到
-            crosshairControl.style.display = 'flex'; // 陳喬志顯示開關
+            confirmBtn.style.display = 'none';
+            crosshairControl.style.display = 'flex';
+            editTickerBtn.style.display = 'inline-block';
             
-            // 同步開關狀態
             const isEnabled = cloudData.settings && cloudData.settings['admin_crosshair_enabled'] === 'true';
             crosshairToggle.checked = isEnabled;
 
-            // 唯有開關為 ON 才觸發十字高亮
             if (isEnabled) {
                 adminCrosshairInit();
             } else {
-                // 關閉時，徹底清除事件與殘留樣式
                 removeCrosshairListeners();
             }
         } else {
             confirmBtn.style.display = 'none';
-            crosshairControl.style.display = 'none'; // 一般員工看不到
-            removeCrosshairListeners(); // 防呆：若切換帳號後也確保移除
+            crosshairControl.style.display = 'none';
+            editTickerBtn.style.display = 'none';
+            removeCrosshairListeners();
         }
-        // =================================================
+
+        // ============ 跑馬燈渲染 ============
+        if (cloudData.settings && cloudData.settings['ticker_text']) {
+            const textContent = cloudData.settings['ticker_text'];
+            tickerTextEl.textContent = textContent;
+            tickerContainer.style.display = 'block';
+
+            // 重新觸發動畫
+            tickerTextEl.style.animation = 'none';
+            tickerTextEl.offsetHeight; /* 觸發重繪 */
+            tickerTextEl.style.animation = `scrollText 35s linear infinite`;
+        } else {
+            tickerContainer.style.display = 'none';
+        }
+        // =================================
     }
 
     function calculateStats(empName, year, month, daysInMonth, otCellId, lvCellId) {
