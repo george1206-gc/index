@@ -28,7 +28,8 @@
 
         body {
             font-family: "Microsoft JhengHei", Arial, sans-serif;
-            margin: 10px;
+            margin: 0;
+            padding: 10px;
             background-color: #fcfcfc;
             touch-action: manipulation;
         }
@@ -128,16 +129,24 @@
 
         .main-app { display: none; }
 
+        /* ========== 優化 1：將頂部控制列固定 ========== */
         .header-controls {
+            position: sticky;
+            top: 0;
+            z-index: 100; /* 確保在最上層 */
+            background-color: #fcfcfc;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 0; /* 減少間距 */
+            padding: 10px 0 8px 0; /* 增加內距避免貼邊 */
             width: 100%;
             box-sizing: border-box;
+            border-bottom: 2px solid #e0e0e0; /* 加上分隔線，清楚辨識固定區 */
         }
+        /* ======================================= */
 
         .left-controls, .right-controls {
             display: flex;
@@ -195,11 +204,15 @@
             outline: none;
         }
 
+        /* ========== 優化 2：當填表關閉時，下拉選單保持正常外觀，僅不可點擊 ========== */
         select:disabled {
-            background-color: #e0e0e0;
-            color: #666;
-            cursor: not-allowed;
+            background-color: transparent !important;   /* 移除灰色背景 */
+            color: inherit !important;                 /* 字體顏色保持原本狀態 (黑或白) */
+            cursor: default !important;                /* 滑鼠游標保持普通樣式，不變為禁止符號 */
+            opacity: 1 !important;                     /* 完全不透明 */
+            -webkit-text-fill-color: unset !important; /* 防止部分瀏覽器強制改字色 */
         }
+        /* ====================================================================== */
 
         .user-info {
             font-size: 13px;
@@ -342,13 +355,17 @@
             background-color: #dde0e3;
         }
 
+        /* ========== 優化 3：表格容器高度控制 ========== */
         .table-container {
             overflow: auto;
-            max-height: 80vh;
+            /* 將高度設定為視窗高度扣除上方固定列與下方容器的估算值 */
+            height: calc(100vh - 90px); 
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             background-color: white;
             -webkit-overflow-scrolling: touch;
+            margin-top: 5px; /* 與上方固定列的間距 */
         }
+        /* ============================================ */
 
         table {
             border-collapse: separate;
@@ -418,8 +435,7 @@
         }
 
         .shift-select:disabled {
-            cursor: not-allowed;
-            opacity: 0.9;
+            cursor: not-allowed; /* 關閉時會出現禁止符號，但外觀依然正常 */
         }
 
         .shift-day { background-color: var(--bg-day); }
@@ -452,8 +468,11 @@
             outline: none;
         }
         .daily-mark-select:disabled {
-            background-color: #f0f0f0;
-            cursor: not-allowed;
+            background-color: transparent !important;
+            color: inherit !important;
+            cursor: default !important;
+            border: none !important;
+            opacity: 1 !important;
         }
 
         td.pending-edit select {
@@ -728,6 +747,7 @@
 
 <!-- ==== 主應用程式 ==== -->
 <div id="mainApp" class="main-app">
+    <!-- ========== 控制列已具備 sticky 黏性效果 ========== -->
     <div class="header-controls">
         <div class="left-controls">
             <div class="control-group">
@@ -780,13 +800,16 @@
             <button id="editEmployeeBtn" class="edit-employee-btn" style="display: none;">👥 管理人員</button>
         </div>
     </div>
+    <!-- ================================================== -->
 
+    <!-- ========== 表格容器已設定高度與捲動條 ========== -->
     <div class="table-container">
         <table id="scheduleTable">
             <thead id="tableHead"></thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
+    <!-- =============================================== -->
 
     <!-- ========== 跑馬燈顯示區塊 ========== -->
     <div id="tickerContainer">
